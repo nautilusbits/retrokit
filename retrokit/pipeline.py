@@ -10,7 +10,6 @@ import csv
 import glob
 import os
 import subprocess
-import sys
 
 from . import ghidra as gh
 from . import libs
@@ -188,7 +187,7 @@ def _export_pe(ws, ghidra, d, names, phase, out):
 def find_entries(ws, out_file, functions=None):
     """tools/find_entries.py over the export (or a functions.csv); returns the number of addresses."""
     src = functions or wsp.sub(ws, "decomp")
-    r = subprocess.run([sys.executable, "-I", paths.tool("find_entries.py"), ws["exe"], src, out_file],
+    r = subprocess.run(paths.tool_cmd("find_entries.py") + [ws["exe"], src, out_file],
                        capture_output=True, text=True)
     if r.returncode:
         raise gh.GhidraError("find_entries.py failed:\n" + r.stdout + r.stderr)

@@ -1,5 +1,6 @@
 """Locations of the files the kit ships next to its Python code."""
 import os
+import sys
 
 PACKAGE = os.path.dirname(os.path.abspath(__file__))
 KIT_ROOT = os.path.dirname(PACKAGE)          # repository checkout (or site-packages)
@@ -13,3 +14,9 @@ SIGS = os.path.join(PACKAGE, "sigs")                       # shipped library sig
 
 def tool(name):
     return os.path.join(TOOLS, name)
+
+
+def tool_cmd(name):
+    """Command line running a bundled tool with this interpreter. -E ignores PYTHON* variables;
+    not -I, which also drops the user site-packages where `pip install --user` put capstone."""
+    return [sys.executable, "-E", tool(name)]

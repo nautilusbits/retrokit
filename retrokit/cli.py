@@ -44,7 +44,7 @@ from . import workspace as wsp
 
 
 def _tool(name, args, env=None):
-    return subprocess.call([sys.executable, "-I", paths.tool(name)] + list(args),
+    return subprocess.call(paths.tool_cmd(name) + list(args),
                            env=dict(os.environ, **(env or {})))
 
 
