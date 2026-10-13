@@ -1,0 +1,14 @@
+retro-kit
+Copyright 2026 The retro-kit authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes software derived from ghidra-lx-loader
+(https://github.com/yetmorecode/ghidra-lx-loader), licensed under the
+Apache License, Version 2.0. The copy in ghidra-lx-loader/ has been modified
+by the retro-kit authors: build script without Gradle (build.ps1), LE object
+permissions taken from the LE object flags, DOS/4G "BW"-bound executables,
+fixups recorded in the Ghidra relocation table, and the Watcom compiler specs
+in data/languages/ (x86watcom.cspec, x86watcom_reg.cspec).
+
+retro-kit does not contain any game files or decompiled game code.

@@ -1,0 +1,26 @@
+# analysis output (never commit decompiled game code)
+*_analysis/
+ghidra_project/
+*.gpr
+*.rep/
+*.lock
+*.lock~
+
+# game binaries and data
+*.EXE
+*.exe
+*.DAT
+*.LE
+*.LX
+
+# build output / release artifacts
+ghidra-lx-loader/build/
+ghidra-lx-loader/dist/
+ghidra-lx-loader/prebuilt_*.zip
+ghidra-lx-loader/lib/ghidra-lx-loader-src.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/

@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Compiler spec for 32-bit Open Watcom / Watcom C (DOS/4GW, DOS32A, PMODE/W ...).
+
+  Default is the Watcom *stack* calling convention (-3s / -5s, "__watcall_stack"):
+    * all arguments pushed right to left, caller removes them (like __cdecl)
+    * EAX, ECX, EDX scratch; EBX, ESI, EDI, EBP preserved; result in EAX / EDX:EAX
+  Most DOS/4GW games built with -3s / -5s use this model for the game code;
+  the Watcom runtime uses the register convention.
+
+  The *register* calling convention (-3r / -5r, "__watcall") is also provided:
+    * first four 1..4 byte integer/pointer arguments go to EAX, EDX, EBX, ECX
+      (left to right); anything that does not fit, and every argument after it,
+      goes on the stack (pushed right to left)
+    * the callee removes stack arguments with RET n  (extrapop="unknown")
+    * integers/pointers return in EAX, 8-byte values in EDX:EAX, floats in ST0
+    * the callee preserves every register except the ones it received
+      arguments in and the ones it returns values in (Watcom "modify exact");
+      for an unknown callee we assume EAX/EDX/EBX/ECX may be clobbered
+
+  The stack based convention (-3s / -5s, "__watcall_stack") is also provided.
+-->
+<compiler_spec>
+  <data_organization>
+     <absolute_max_alignment value="0" />
+     <machine_alignment value="2" />
+     <default_alignment value="1" />
+     <default_pointer_alignment value="4" />
+     <pointer_size value="4" />
+     <wchar_size value="2" />
+     <short_size value="2" />
+     <integer_size value="4" />
+     <long_size value="4" />
+     <long_long_size value="8" />
+     <float_size value="4" />
+     <double_size value="8" />
+     <long_double_size value="8" />
+     <size_alignment_map>
+          <entry size="1" alignment="1" />
+          <entry size="2" alignment="2" />
+          <entry size="4" alignment="4" />
+          <entry size="8" alignment="8" />
+     </size_alignment_map>
+  </data_organization>
+  <global>
+    <range space="ram"/>
+  </global>
+  <stackpointer register="ESP" space="ram"/>
+  <returnaddress>
+    <varnode space="stack" offset="0" size="4"/>
+  </returnaddress>
+  <default_proto>
+    <prototype name="__watcall_stack" extrapop="4" stackshift="4">
+      <input>
+        <pentry minsize="1" maxsize="500" align="4">
+          <addr offset="4" space="stack"/>
+        </pentry>
+      </input>
+      <output>
+        <pentry minsize="4" maxsize="10" metatype="float" extension="float">
+          <register name="ST0"/>
+        </pentry>
+        <pentry minsize="1" maxsize="4">
+          <register name="EAX"/>
+        </pentry>
+        <pentry minsize="5" maxsize="8">
+          <addr space="join" piece1="EDX" piece2="EAX"/>
+        </pentry>
+      </output>
+      <unaffected>
+        <varnode space="ram" offset="0" size="4"/>
+        <register name="ESP"/>
+        <register name="EBP"/>
+        <register name="ESI"/>
+        <register name="EDI"/>
+        <register name="EBX"/>
+        <register name="DF"/>
+      </unaffected>
+      <killedbycall>
+        <register name="EAX"/>
+        <register name="ECX"/>
+        <register name="EDX"/>
+      </killedbycall>
+      <likelytrash>
+        <register name="ECX"/>
+      </likelytrash>
+    </prototype>
+  </default_proto>
+  <prototype name="__watcall" extrapop="unknown" stackshift="4">
+      <input>
+        <pentry minsize="1" maxsize="4">
+          <register name="EAX"/>
+        </pentry>
+        <pentry minsize="1" maxsize="4">
+          <register name="EDX"/>
+        </pentry>
+        <pentry minsize="1" maxsize="4">
+          <register name="EBX"/>
+        </pentry>
+        <pentry minsize="1" maxsize="4">
+          <register name="ECX"/>
+        </pentry>
+        <pentry minsize="1" maxsize="500" align="4">
+          <addr offset="4" space="stack"/>
+        </pentry>
+      </input>
+      <output>
+        <pentry minsize="4" maxsize="10" metatype="float" extension="float">
+          <register name="ST0"/>
+        </pentry>
+        <pentry minsize="1" maxsize="4">
+          <register name="EAX"/>
+        </pentry>
+        <pentry minsize="5" maxsize="8">
+          <addr space="join" piece1="EDX" piece2="EAX"/>
+        </pentry>
+      </output>
+      <unaffected>
+        <varnode space="ram" offset="0" size="4"/>
+        <register name="ESP"/>
+        <register name="EBP"/>
+        <register name="ESI"/>
+        <register name="EDI"/>
+        <register name="DF"/>
+      </unaffected>
+      <killedbycall>
+        <register name="EAX"/>
+        <register name="ECX"/>
+        <register name="EDX"/>
+        <register name="EBX"/>
+      </killedbycall>
+      <likelytrash>
+        <register name="ECX"/>
+      </likelytrash>
+    </prototype>
+  <prototype name="__cdecl" extrapop="4" stackshift="4">
+    <input>
+      <pentry minsize="1" maxsize="500" align="4">
+        <addr offset="4" space="stack"/>
+      </pentry>
+    </input>
+    <output>
+      <pentry minsize="4" maxsize="10" metatype="float" extension="float">
+        <register name="ST0"/>
+      </pentry>
+      <pentry minsize="1" maxsize="4">
+        <register name="EAX"/>
+      </pentry>
+      <pentry minsize="5" maxsize="8">
+        <addr space="join" piece1="EDX" piece2="EAX"/>
+      </pentry>
+    </output>
+    <unaffected>
+      <varnode space="ram" offset="0" size="4"/>
+      <register name="ESP"/>
+      <register name="EBP"/>
+      <register name="ESI"/>
+      <register name="EDI"/>
+      <register name="EBX"/>
+      <register name="DF"/>
+    </unaffected>
+    <killedbycall>
+      <register name="EAX"/>
+      <register name="ECX"/>
+      <register name="EDX"/>
+    </killedbycall>
+  </prototype>
+  <prototype name="__stdcall" extrapop="unknown" stackshift="4">
+    <input>
+      <pentry minsize="1" maxsize="500" align="4">
+        <addr offset="4" space="stack"/>
+      </pentry>
+    </input>
+    <output>
+      <pentry minsize="1" maxsize="4">
+        <register name="EAX"/>
+      </pentry>
+      <pentry minsize="5" maxsize="8">
+        <addr space="join" piece1="EDX" piece2="EAX"/>
+      </pentry>
+    </output>
+    <unaffected>
+      <varnode space="ram" offset="0" size="4"/>
+      <register name="ESP"/>
+      <register name="EBP"/>
+      <register name="ESI"/>
+      <register name="EDI"/>
+      <register name="EBX"/>
+      <register name="DF"/>
+    </unaffected>
+    <killedbycall>
+      <register name="EAX"/>
+      <register name="ECX"/>
+      <register name="EDX"/>
+    </killedbycall>
+  </prototype>
+</compiler_spec>
