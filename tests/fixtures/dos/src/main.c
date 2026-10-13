@@ -5,7 +5,8 @@
 
 static unsigned char g_screen[320 * 200];
 
-static void usage(void)
+/* not static: the linker map lists only global symbols */
+void usage(void)
 {
     printf("usage: engine [-seed N] [-level FILE] [-frames N] [-quiet]\n");
 }

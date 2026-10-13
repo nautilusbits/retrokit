@@ -133,6 +133,23 @@ def evaluate(vdir, verbose=False):
     addrs = sorted(truth)
     size_of = {a: (addrs[i + 1] if i + 1 < len(addrs) else code_end) - a for i, a in enumerate(addrs)}
 
+    # bytes of jump tables Watcom stores in the code object (fixup sources outside any
+    # instruction): the map counts them into the preceding function
+    table_slots = set()
+    fx = os.path.join(decomp, "fixups.txt")
+    if os.path.exists(fx):
+        for line in open(fx):
+            f = line.rstrip("\n").split("\t")
+            if len(f) >= 5 and f[3] in ("FUNC", "INFUNC") and f[4] == "-":
+                slot = int(f[0], 16)
+                if code_start <= slot < code_end:
+                    table_slots.add(slot)
+
+    def code_size(a):
+        """map size of the function at a without in-code tables and alignment padding"""
+        n = size_of[a] - 4 * sum(1 for s in table_slots if a <= s < a + size_of[a])
+        return max(n - 15, 1)
+
     gh = {}
     for row in csv.DictReader(open(os.path.join(decomp, "functions.csv"))):
         gh[int(row["addr"], 16)] = row
@@ -158,7 +175,7 @@ def evaluate(vdir, verbose=False):
         row = gh[a]
         gname[row["name"]] = name
         gsize, msize = int(row["size"]), size_of[a]
-        if gsize < msize - 16 and gsize < 0.9 * msize:
+        if gsize < code_size(a) and gsize < 0.9 * msize:
             trunc += 1
             issues.append("truncated %08x %s: %d of %d bytes" % (a, name, gsize, msize))
         n, va = count_params(row["signature"])
