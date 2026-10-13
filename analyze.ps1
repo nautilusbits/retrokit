@@ -27,11 +27,20 @@ param(
     [string]$Loader = "LeLoader",
     [string]$Processor = "x86:LE:32:default",
     [string]$CName,
-    [switch]$Prototypes,
+    [switch]$NoPrototypes,
     [string]$Names,
     [switch]$SkipImport
 )
 $ErrorActionPreference = "Stop"
+# Fails the run when headless Ghidra reported a script error or did not finish a phase.
+function Assert-HeadlessLog([string]$log) {
+    $errs = Select-String -Path $log -Pattern 'REPORT SCRIPT ERROR|SCRIPT ERROR|error: |GhidraScriptLoadException|Unable to lock' -ErrorAction SilentlyContinue
+    if ($errs -or $LASTEXITCODE) {
+        $errs | Select-Object -First 10 | ForEach-Object { Write-Host $_.Line }
+        throw "headless Ghidra failed (exit $LASTEXITCODE), see $log"
+    }
+}
+
 $kit = $PSScriptRoot
 if (-not $Ghidra -and $env:GHIDRA_INSTALL_DIR) { $Ghidra = $env:GHIDRA_INSTALL_DIR }
 if (-not $Ghidra) {
@@ -50,6 +59,8 @@ $proj = Join-Path $Out "ghidra_project"
 $decomp = Join-Path $Out "decomp"
 $logs = Join-Path $Out "logs"
 New-Item -ItemType Directory -Force $proj, $decomp, $logs | Out-Null
+# headless Ghidra appends to its logs; start clean so old errors do not fail this run
+Get-ChildItem $logs -Filter "*.log" | Remove-Item -Force
 $Out = (Resolve-Path $Out).Path
 $name = [IO.Path]::GetFileName($Exe)
 $scripts = Join-Path $kit "ghidra_scripts"
@@ -63,12 +74,14 @@ if (-not $SkipImport) {
     & $headless $proj Game -import $Exe -loader $Loader -processor $Processor -cspec $Cspec -overwrite `
         -scriptPath $scripts -postScript CreateFunctionsFromFixups.java -log (Join-Path $logs "import.log") 2>&1 |
         Out-File (Join-Path $logs "import_stdout.log")
+        Assert-HeadlessLog (Join-Path $logs "import.log")
 }
 Write-Host "== fixup functions + re-analysis + export"
-# Register convention: functions called through the stack (varargs, __cdecl libraries) get __cdecl
-$ccScript = if ($Cspec -eq "watcomreg") { @("-preScript", "ApplyStackConvention.java") } else { @() }
+# Parameter counts from "ADD ESP,n" cleanups at call sites: with the stack convention for every
+# function, with the register convention for the functions called through the stack (varargs, __cdecl)
+$ccScript = @("-preScript", "ApplyStackConvention.java")
 # Prototype recovery (callees before callers) removes fake register arguments at call sites
-$protoScript = if ($Prototypes -or $Cspec -eq "watcomreg") { @("-postScript", "RecoverPrototypes.java") } else { @() }
+$protoScript = if ($NoPrototypes) { @() } else { @("-postScript", "RecoverPrototypes.java") }
 $namesScript = if ($Names) { @("-postScript", "ApplyNames.java", (Resolve-Path $Names).Path) } else { @() }
 & $headless $proj Game -process $name -scriptPath $scripts `
     -preScript FixTruncatedCallers.java `
@@ -80,6 +93,7 @@ $namesScript = if ($Names) { @("-postScript", "ApplyNames.java", (Resolve-Path $
     -postScript ExportDecompiled.java $decomp $CName `
     -postScript DumpFixups.java (Join-Path $decomp "fixups.txt") `
     -log (Join-Path $logs "export.log") 2>&1 | Out-File (Join-Path $logs "export_stdout.log")
+    Assert-HeadlessLog (Join-Path $logs "export.log")
 
 Get-Content (Join-Path $logs "export.log") | Select-String -Pattern 'Created|Exporting|Export done|Wrote|ERROR|REPORT|ApplyStackConvention:|MarkStringsConstant:|ApplyNames:|Recovering|iteration' |
     ForEach-Object Line

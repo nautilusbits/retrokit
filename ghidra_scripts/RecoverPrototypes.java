@@ -9,6 +9,8 @@
 // (EBX/ECX/EDX under the Watcom register convention) as fake arguments, and the
 // caller's own committed prototype does not inherit them.
 // A committed (ANALYSIS) prototype stays locked, so one iteration is normally enough.
+// A "void" return is never committed: the decompiler often cannot see EAX set on every path
+// (results of tail calls), and a committed void turns every use at a call site into extraout_EAX.
 //
 // Trailing register parameters the decompiler named "unaff_<REG>" are dropped before the
 // prototype is kept, unless at least half of the direct call sites load that register
@@ -29,6 +31,9 @@ import ghidra.app.decompiler.parallel.ParallelDecompiler;
 import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.lang.Register;
+import ghidra.program.model.data.DataType;
+import ghidra.program.model.data.Undefined8DataType;
+import ghidra.program.model.data.VoidDataType;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Instruction;
 import ghidra.program.model.listing.Parameter;
@@ -44,6 +49,10 @@ public class RecoverPrototypes extends GhidraScript {
 
 	private static final int LOOKBACK = 8;
 
+	private static boolean stackArgs(Function f) {
+		return f.getTags().stream().anyMatch(t -> t.getName().equals("STACK_ARGS"));
+	}
+
 	@Override
 	protected void run() throws Exception {
 		String[] args = getScriptArgs();
@@ -58,6 +67,8 @@ public class RecoverPrototypes extends GhidraScript {
 			}
 		}
 		Map<Address, Set<String>> argRegs = callerLoadedRegisters(funcs);
+		boolean regConv = currentProgram.getCompilerSpec().getDefaultCallingConvention().getName()
+			.equals("__watcall");
 		List<List<Function>> levels = bottomUpLevels(funcs);
 		println("Recovering prototypes for " + funcs.size() + " functions in " + levels.size() +
 			" call-graph levels, " + iterations + " iteration(s)");
@@ -86,16 +97,30 @@ public class RecoverPrototypes extends GhidraScript {
 						}
 						Function f = hf.getFunction();
 						Set<String> loaded = argRegs.getOrDefault(f.getEntryPoint(), Collections.emptySet());
+						Set<String> unsaved = regConv ? unsavedArgRegisters(f) : Collections.emptySet();
 						String before = f.getSignature().getPrototypeString();
 						try {
 							synchronized (currentProgram) {
+								if (stackArgs(f)) {
+									// parameter count from call-site cleanup (ApplyStackConvention)
+									if (!(hf.getFunctionPrototype().getReturnType() instanceof VoidDataType)) {
+										f.setReturnType(hf.getFunctionPrototype().getReturnType(), SourceType.ANALYSIS);
+									}
+									synchronized (counts) { counts[0]++; }
+									return true;
+								}
 								HighFunctionDBUtil.commitParamsToDatabase(hf, true,
-									ReturnCommitOption.COMMIT, SourceType.ANALYSIS);
+									ReturnCommitOption.COMMIT_NO_VOID, SourceType.ANALYSIS);
+								// an untyped 8-byte return is EDX left set by the callee, not a long long result
+								if (f.getReturnType() instanceof Undefined8DataType) {
+									f.setReturnType(DataType.DEFAULT, SourceType.DEFAULT);
+								}
 								Parameter[] ps = f.getParameters();
 								int keep = ps.length;
 								while (keep > 0 && ps[keep - 1].getName().startsWith("unaff_")) {
 									Register r = ps[keep - 1].getRegister();
-									if (r != null && loaded.contains(r.getBaseRegister().getName())) {
+									String rn = r == null ? null : r.getBaseRegister().getName();
+									if (rn != null && (loaded.contains(rn) || unsaved.contains(rn))) {
 										counts[4]++;
 										break;
 									}
@@ -103,6 +128,12 @@ public class RecoverPrototypes extends GhidraScript {
 								}
 								for (int i = ps.length - 1; i >= keep; i--) {
 									f.removeParameter(i);
+								}
+								// kept register arguments are real parameters: drop the "unaff_" look
+								for (int i = 0; i < keep; i++) {
+									if (ps[i].getName().startsWith("unaff_")) {
+										ps[i].setName("param_" + (i + 1), SourceType.ANALYSIS);
+									}
 								}
 								counts[3] += ps.length - keep;
 							}
@@ -138,6 +169,26 @@ public class RecoverPrototypes extends GhidraScript {
 	 * For every function: base registers that at least half of its direct call sites write
 	 * within LOOKBACK instructions before the CALL (stopping at CALL/RET/JMP).
 	 */
+	/**
+	 * Register convention: argument registers (EDX, EBX, ECX) the function does not save in
+	 * its prologue. A Watcom callee saves every register it modifies except EAX and the ones
+	 * carrying arguments, so a register it reads without saving is an argument - evidence
+	 * that also works for functions only called through pointer tables.
+	 */
+	private Set<String> unsavedArgRegisters(Function f) {
+		Set<String> regs = new HashSet<>(Arrays.asList("EDX", "EBX", "ECX"));
+		Instruction ins = getInstructionAt(f.getEntryPoint());
+		for (int i = 0; i < 8 && ins != null && ins.getMnemonicString().equalsIgnoreCase("PUSH"); i++) {
+			for (Object o : ins.getOpObjects(0)) {
+				if (o instanceof Register reg && reg.getBaseRegister() != null) {
+					regs.remove(reg.getBaseRegister().getName());
+				}
+			}
+			ins = ins.getNext();
+		}
+		return regs;
+	}
+
 	private Map<Address, Set<String>> callerLoadedRegisters(List<Function> funcs) {
 		Map<Address, Set<String>> out = new HashMap<>();
 		for (Function f : funcs) {

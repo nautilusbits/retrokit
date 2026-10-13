@@ -70,7 +70,7 @@ Recommended layout (then no paths need to be given):
    - `-Loader LeLoader|LxLoader|VxDLoader` – LE (default), OS/2 LX, VxD
    - `-SkipImport` – no import: rerun the fixup pass + export on the existing project
    - `-Names <dir|csv>` – applies name proposals from `names_*.csv` before export
-   - `-Prototypes` – recovers prototypes bottom-up even with the stack convention (always with `watcomreg`)
+   - `-NoPrototypes` – skips parameter counts from call sites and the bottom-up prototype recovery
    - `-CName` – name of the output `.c` (default `<exe>_decompiled.c`)
 
    Output in `<out>\decomp\` (default `<out>` = `<EXE directory>\<exe>_analysis`):
@@ -79,8 +79,8 @@ Recommended layout (then no paths need to be given):
    - `strings.txt`, `calls.txt` (call graph), `data_symbols.txt`, `memory_blocks.txt`
    - `fixups.txt` – every LE fixup: source → target (function/string) – the key
      to function-pointer tables and to which function uses which string
-   - with `-Cspec watcomreg`, function prototypes are recovered (bottom-up) before export,
-     and varargs/`__cdecl` functions are detected from `ADD ESP` at call sites
+   - before export, parameter counts are taken from `ADD ESP` cleanups at call sites (varargs
+     functions split at their format string) and prototypes are recovered bottom-up
 
 3. **Read:** `python tools\showfn.py --dir <out>\decomp FUN_00012345`,
    `python tools\find_tables.py <out>\decomp\fixups.txt`.

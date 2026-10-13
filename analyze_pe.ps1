@@ -28,6 +28,15 @@ param(
     [switch]$NoExport
 )
 $ErrorActionPreference = "Stop"
+# Fails the run when headless Ghidra reported a script error or did not finish a phase.
+function Assert-HeadlessLog([string]$log) {
+    $errs = Select-String -Path $log -Pattern 'REPORT SCRIPT ERROR|SCRIPT ERROR|error: |GhidraScriptLoadException|Unable to lock' -ErrorAction SilentlyContinue
+    if ($errs -or $LASTEXITCODE) {
+        $errs | Select-Object -First 10 | ForEach-Object { Write-Host $_.Line }
+        throw "headless Ghidra failed (exit $LASTEXITCODE), see $log"
+    }
+}
+
 $kit = $PSScriptRoot
 if (-not $Ghidra -and $env:GHIDRA_INSTALL_DIR) { $Ghidra = $env:GHIDRA_INSTALL_DIR }
 if (-not $Ghidra) {
@@ -49,6 +58,8 @@ $proj = Join-Path $Out "ghidra_project"
 $decomp = Join-Path $Out "decomp"
 $logs = Join-Path $Out "logs"
 New-Item -ItemType Directory -Force $proj, $decomp, $logs | Out-Null
+# headless Ghidra appends to its logs; start clean so old errors do not fail this run
+Get-ChildItem $logs -Filter "*.log" | Remove-Item -Force
 $name = [IO.Path]::GetFileName($Exe)
 $scripts = Join-Path $kit "ghidra_scripts"
 Write-Host "Ghidra: $Ghidra"
@@ -60,12 +71,14 @@ if (-not $SkipImport) {
     Write-Host "== import + auto-analysis (PE loader, default analyzers)"
     & $headless $proj Game -import $Exe -overwrite -log (Join-Path $logs "import.log") 2>&1 |
         Out-File (Join-Path $logs "import_stdout.log")
+        Assert-HeadlessLog (Join-Path $logs "import.log")
 }
 if ($Entries) {
     Write-Host "== create functions at entries + re-analysis"
     & $headless $proj Game -process $name -scriptPath $scripts `
         -preScript CreateFunctionsAtEntries.java ("@" + (Resolve-Path $Entries).Path) `
         -log (Join-Path $logs "entries.log") 2>&1 | Out-File (Join-Path $logs "entries_stdout.log")
+        Assert-HeadlessLog (Join-Path $logs "entries.log")
     Get-Content (Join-Path $logs "entries.log") | Select-String -Pattern 'Entries:|ERROR' | ForEach-Object Line
 }
 if ($NoExport) { exit 0 }
@@ -76,6 +89,7 @@ $namesScript = if ($Names) { @("-postScript", "ApplyNames.java", (Resolve-Path $
     -postScript ExportDecompiled.java $decomp $CName `
     -postScript DumpImports.java (Join-Path $decomp "imports.txt") `
     -log (Join-Path $logs "export.log") 2>&1 | Out-File (Join-Path $logs "export_stdout.log")
+    Assert-HeadlessLog (Join-Path $logs "export.log")
 
 Get-Content (Join-Path $logs "export.log") | Select-String -Pattern 'Exporting|Export done|DumpImports|ApplyNames:|ERROR' |
     ForEach-Object Line

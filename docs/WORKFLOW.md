@@ -61,7 +61,9 @@ comment in the cspec).
 1. Import + standard auto-analysis (on the order of minutes for hundreds of KB of code).
 2. `CreateFunctionsFromFixups.java`: walks the relocation table; every 32-bit
    fixup pointing into the code object where there is no function yet gets disassembled
-   and turned into a function. Watcom games call a large part of their logic through
+   and turned into a function. Watcom also stores `switch` jump tables in the code
+   object; a table is recognised by the fixup in the operand of an indirect `JMP`, its
+   slots become pointers and its cases stay inside the switch's function. Watcom games call a large part of their logic through
    function-pointer tables (state machines, drawing routines) and Ghidra does not find
    them on its own – this raises function coverage considerably.
    If the game code sits in an object without the execute flag or shares an object with data,
@@ -72,19 +74,27 @@ comment in the cspec).
    disables the `Non-Returning Functions - Discovered` analyzer, disassembles the
    fall-through and rebuilds the bodies. Without arguments it runs in auto mode
    (no-return functions that contain a `RET`).
-4. `MarkStringsConstant.java`: marks strings in the writable data object as
-   `constant` so the decompiler prints `"text"` literals (otherwise `&DAT_xxx`).
-5. Only for `-Cspec watcomreg` (or with `-Prototypes`):
-   - `ApplyStackConvention.java`: functions whose calls are followed by `ADD ESP,n`
-     get `__cdecl`; if `n` differs between calls it is varargs
-     (sprintf…) → min(n)/4 fixed parameters + `...`, locked signature.
+4. `MarkStringsConstant.java`: defines the short strings Ghidra's ASCII analyzer skips
+   (fewer than 5 characters, e.g. `"seed"`, `"rb"`) wherever code takes their address, then
+   marks strings in the writable data object as `constant` so the decompiler prints
+   `"text"` literals (otherwise `&DAT_xxx`).
+5. Parameter counts and prototypes (skip with `-NoPrototypes`):
+   - `ApplyStackConvention.java`: parameter counts from `ADD ESP,n` right after calls
+     (only counted when n/4 argument pushes precede the call – otherwise the ADD releases
+     the caller's frame). Stack convention: every such function gets n/4 parameters, and
+     functions ending in `RET n` (e.g. the stack check `__CHK`) get `__stdcall`. Register
+     convention: these are the functions called through the stack and get `__cdecl`.
+     If n differs between calls the function is varargs (sprintf…): the fixed parameters
+     end at the argument that is a format string, `...` follows, the signature is locked.
    - `RecoverPrototypes.java`: prototypes from the decompiler **bottom-up** by
-     call-graph level (in parallel within a level). Trailing `unaff_*` parameters
-     (saved registers) are dropped unless at least half of the callers set them
-     right before the `CALL` (so e.g. `main(argc=EAX, argv=EDX)` survives).
-     Callers then see the real number of arguments. Note: a data-flow check in the callee
-     (whether a register is "really used") does not work – partial writes such as
-     `mov bh,cl` make every saved register look used.
+     call-graph level (in parallel within a level); functions with counts from step 5a
+     only get their return type. A `void` or untyped 8-byte return is never committed
+     (both turn call sites into `extraout_*`). Trailing `unaff_*` parameters are dropped
+     unless at least half of the callers set the register right before the `CALL`
+     (e.g. `main(argc=EAX, argv=EDX)`) or – register convention – the function reads the
+     register without saving it in its prologue: a Watcom callee saves every register it
+     modifies except EAX and its argument registers. This also works for functions only
+     called through pointer tables. Kept register parameters are renamed `param_N`.
 6. `ExportDecompiled.java` + `DumpFixups.java`.
 
 **Pitfall – block permissions.** If the loader creates every object as `r--`,
@@ -99,8 +109,11 @@ How to measure decompilation quality: counts of `extraout_`, `unaff_`, `undefine
 `unaff_` remains mainly inside large functions and the asm runtime, not in signatures.
 
 `EnableDeepAnalysis.java` (Decompiler Parameter ID) is not recommended – on a program
-with thousands of functions it runs for tens of minutes without a result. The stack convention
-gives good signatures even without it; `RecoverPrototypes.java` is a parallel replacement if needed.
+with thousands of functions it runs for tens of minutes without a result; `RecoverPrototypes.java`
+is the parallel replacement and runs by default.
+
+Every change to the pipeline is measured on the synthetic test programs (`tests/`), see
+`tests/README.md`.
 
 If you kill the headless process, delete `ghidra_project\*.lock*`.
 

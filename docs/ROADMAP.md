@@ -24,11 +24,14 @@ library signatures are shipped only when built from open-source or public-domain
 
 ## Known pipeline problems found by the test corpus
 
-See `tests/baseline.json` for the current numbers.
+See `tests/baseline.json` for the current numbers. Fixed: switch functions cut short,
+`undefined f(void)` signatures with the stack convention, missing register parameters of
+table-only functions, one fixed parameter too many on varargs functions, short strings
+not shown as literals.
 
-- Functions with a `switch` are cut short (jump table not followed) in both conventions.
-- Stack convention: exported signatures are `undefined f(void)` unless `-Prototypes` is used,
-  although the decompiled call sites mostly have the right arguments.
-- Register convention: functions reached only through pointer tables get too few parameters;
-  varargs functions get one fixed parameter too many.
-- String literals passed in registers are often printed as data references, not `"..."`.
+Open:
+- Stack convention: functions only reached through pointer tables have no call-site cleanup
+  to count; the decompiler misses parameters they never read (e.g. an empty draw handler).
+- Without optimization (`-od`) a few 64-bit helpers keep 0 parameters.
+- Most remaining noise (`extraout_`, `unaff_`, `in_*`) is in the Watcom runtime, which the
+  library signatures (step 5) will name and type.

@@ -13,6 +13,7 @@ Metrics (own = functions from the fixture sources, lib = Watcom runtime):
   calls_args_ok           calls between own functions passing the right number of arguments
   strings_found           string literals of the sources printed as "..." in the .c
   extraout / unaff / undefined8 / in_reg / warnings   noise counters in the decompiled C
+                          (whole file, and *_own for the fixture functions only)
 """
 import argparse
 import csv
@@ -215,17 +216,22 @@ def evaluate(vdir, verbose=False):
     m["calls_total"], m["calls_args_ok"] = calls, calls_ok
 
     lits = source_strings()
-    found = sum(1 for s in lits if '"%s"' % s in text)
+    # the decompiler escapes quotes inside literals
+    ctext = text.replace(r"\'", "'")
+    found = sum(1 for s in lits if '"%s"' % s in ctext)
     m["strings_total"], m["strings_found"] = len(lits), found
     for s in sorted(lits):
-        if '"%s"' % s not in text:
+        if '"%s"' % s not in ctext:
             issues.append('string    "%s" not a literal' % s)
 
-    m["extraout"] = len(re.findall(r'\bextraout_', text))
-    m["unaff"] = len(re.findall(r'\bunaff_', text))
-    m["undefined8"] = len(re.findall(r'\bundefined8\b', text))
-    m["in_reg"] = len(re.findall(r'\bin_[A-Z]{2,3}\b', text))
-    m["warnings"] = len(re.findall(r'WARNING:', text))
+    noise = {"extraout": r'\bextraout_', "unaff": r'\bunaff_', "undefined8": r'\bundefined8\b',
+             "in_reg": r'\bin_[A-Z]{2,3}\b', "warnings": r'WARNING:'}
+    own_addrs = set(own)
+    own_text = "".join(text[h.start():heads[i + 1].start() if i + 1 < len(heads) else len(text)]
+                       for i, h in enumerate(heads) if int(h.group(2), 16) in own_addrs)
+    for k, pat in noise.items():
+        m[k] = len(re.findall(pat, text))
+        m[k + "_own"] = len(re.findall(pat, own_text))
     m["functions"] = len(gh)
     m["issues"] = issues
     return m
@@ -234,12 +240,14 @@ def evaluate(vdir, verbose=False):
 SUMMARY = [("own_found", "own_total"), ("lib_found", "lib_total"), ("own_params_ok", "own_total"),
            ("calls_args_ok", "calls_total"), ("strings_found", "strings_total")]
 COUNTERS = ["own_truncated", "extraout", "unaff", "undefined8", "in_reg", "warnings"]
+OWN_NOISE = ["extraout_own", "unaff_own", "undefined8_own", "in_reg_own", "warnings_own"]
 
 
 def format_metrics(m):
     out = ["%-12s " % m["variant"] + "  ".join("%s %d/%d" % (k.replace("_found", "").replace("_ok", ""), m[k], m[t])
                                               for k, t in SUMMARY),
-           " " * 13 + "  ".join("%s %d" % (k, m[k]) for k in COUNTERS)]
+           " " * 13 + "  ".join("%s %d" % (k, m[k]) for k in COUNTERS),
+           " " * 13 + "own code: " + "  ".join("%s %d" % (k[:-4], m[k]) for k in OWN_NOISE)]
     return "\n".join(out)
 
 
