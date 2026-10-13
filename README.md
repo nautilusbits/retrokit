@@ -156,3 +156,10 @@ Output in `<out>\decomp\`: `<exe>_decompiled.c`, `functions.csv`, `calls.txt`, `
 - **Win32 PE / MSVC**: `analyze_pe.ps1`; after the first run add functions via `find_entries.py` + `-Entries`.
 
 Details and typical problems: `docs/WORKFLOW.md`.
+
+## Tests
+
+`tests/` builds small synthetic programs with Open Watcom (a dev/CI dependency only), runs the
+pipeline on them and scores the result against the linker map (function addresses, parameter
+counts, string literals, truncated functions, decompiler noise). See `tests/README.md`.
+Planned work: `docs/ROADMAP.md`.

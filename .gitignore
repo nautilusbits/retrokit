@@ -24,3 +24,6 @@ __pycache__/
 *.pyc
 .venv/
 *.egg-info/
+
+# test fixtures built by tests/build_fixtures.py
+tests/fixtures/build/
