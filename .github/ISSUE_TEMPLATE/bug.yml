@@ -1,0 +1,38 @@
+name: Bug or wrong analysis result
+description: retrokit fails, or the decompiled output is wrong in a way the kit should handle
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not attach game files, executables or decompiled game code** - not even excerpts
+        of a commercial game. Describe the binary instead; the output of `retrokit info` and
+        `retrokit libs` is usually enough. A small program that shows the problem, built with
+        Open Watcom like the ones in `tests/fixtures`, is the best reproducer.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and output
+      description: The retrokit command you ran and its output (logs from <workspace>/logs help too).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: info
+    attributes:
+      label: retrokit info / retrokit libs
+      description: Format, extender, compiler, calling convention, libraries of the executable.
+      render: text
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Output of `retrokit doctor` (OS, Python, Ghidra, Java).
+      render: text
+    validations:
+      required: true

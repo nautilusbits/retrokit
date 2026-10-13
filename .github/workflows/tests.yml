@@ -28,8 +28,6 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    # the Linux run is not verified yet
-    continue-on-error: ${{ matrix.os == 'ubuntu-latest' }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:

@@ -18,7 +18,7 @@ Prerequisites: [Ghidra 12.x](https://github.com/NationalSecurityAgency/ghidra/re
 (unpacked), a JDK 21+ (`JAVA_HOME`), Python 3.10+.
 
 ```
-pipx install <path or URL of this repository>     # or: pip install .   (or run: python -m retrokit)
+pipx install git+https://github.com/nemo22/retrokit   # or from a checkout: pip install .  (or python -m retrokit)
 retrokit doctor                                    # checks Python, Ghidra, Java, loader, cspecs
 retrokit install-loader                            # once per Ghidra install (DOS LE/LX only)
 ```
@@ -64,6 +64,9 @@ re-export with the names applied (on request, in the background). Claude Code:
 claude mcp add retrokit -- retrokit mcp /path/to/GAME_analysis
 ```
 
+Setup for other clients, every tool and how an agent should work: [docs/MCP.md](docs/MCP.md);
+a short version for agents in [AGENTS.md](AGENTS.md).
+
 Names: write proposals to `notes/names_<topic>.csv` (`addr,name,confidence,comment`, confidence
 `V` verified or `G` guess); `retrokit names WS` renames functions/labels (V wins over G,
 collisions get `_<addr>`) and re-exports.
@@ -96,8 +99,9 @@ without Ghidra), `match` (transfer names to a related EXE: sequel, add-on, other
 `le EXE info|dump|rec|s16|s32` (read tables from an LE at Ghidra addresses), `rnc` (RNC ProPack),
 `flic info|png|video` (Autodesk FLI/FLC). `retrokit COMMAND --help` for options.
 
-The detailed procedure, what to expect and the known pitfalls are in `docs/WORKFLOW.md`; task
-templates for AI agents in `docs/AGENT_PROMPTS.md`; planned work in `docs/ROADMAP.md`.
+The detailed procedure, what to expect and the known pitfalls are in `docs/WORKFLOW.md`; the
+MCP server in `docs/MCP.md`; task templates for AI agents in `docs/AGENT_PROMPTS.md`; planned
+work in `docs/ROADMAP.md`; maintaining and releasing in `docs/MAINTAINING.md`.
 
 ## Layout
 

@@ -1,0 +1,26 @@
+name: Library or format support
+description: A library of the period (sound, video, compression, ...) or a data format retrokit should know about
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Signatures are shipped only for open-source or public-domain libraries. For a
+        proprietary one, detection rules (strings, DLL names, file signatures), documented
+        API names and notes on its formats are what can go into the catalog
+        (`retrokit/knowledge/libraries.json`). Do not attach the library's files or game files.
+  - type: input
+    id: name
+    attributes:
+      label: Library or format
+      placeholder: e.g. "Sound library X 3.1" or ".ABC music files"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: How to recognise it
+      description: Strings in executables, DLL or function names, file names, magic bytes.
+  - type: textarea
+    id: details
+    attributes:
+      label: Licence, documentation, period, games that use it (names are fine here, files are not)
