@@ -37,7 +37,7 @@ def built_variants():
 
 
 def run_tool(script, *args, env=None):
-    r = subprocess.run([sys.executable, "-I", os.path.join(TOOLS, script)] + list(args),
+    r = subprocess.run([sys.executable, "-E", os.path.join(TOOLS, script)] + list(args),
                        capture_output=True, text=True, env=env)
     return r.returncode, r.stdout + r.stderr
 

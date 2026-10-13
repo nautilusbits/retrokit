@@ -10,7 +10,7 @@ library signatures are shipped only when built from open-source or public-domain
 2. ~~Test corpus: synthetic programs built with Open Watcom, scored against the linker map, CI~~
 3. ~~Python CLI (`retrokit doctor | install-loader | info | analyze | reexport | names | show | ...`),
    automatic format and calling-convention detection, settings remembered per workspace,
-   PowerShell scripts replaced (Linux run in CI not verified yet)~~
+   PowerShell scripts replaced, runs on Windows and Linux~~
 4. ~~Own LE/LX loader (retrokit-le-loader), identical to the legacy loader on every LE test
    program, checked against an independent Python model (LX, imports, BW bind included)~~
    - open: Watcom debug info, PMODE/W compressed executables, LX EXEPACK2 pages
