@@ -5,9 +5,12 @@
 ```
 python -c "d=open('GAME.EXE','rb').read();o=int.from_bytes(d[0x3c:0x40],'little');print(hex(o), d[o:o+2])"
 ```
-- `b'LE'` → DOS/4GW / DOS32A / PMODE/W, 32-bit flat → `analyze.ps1`.
+`retrokit info GAME.EXE` does all of this section (format, BW chain, extender, compiler,
+calling convention). By hand:
+
+- `b'LE'` → DOS/4GW / DOS32A / PMODE/W, 32-bit flat → LE pipeline.
 - `b'LX'` → OS/2 (`-Loader LxLoader`).
-- `b'PE'` → Win32 → `analyze_pe.ps1` (section 7). `b'NE'` → Ghidra handles it natively.
+- `b'PE'` → Win32 → PE pipeline (section 7). `b'NE'` → Ghidra handles it natively.
 - Only `MZ` without a new header → 16-bit real mode; Ghidra x86 16-bit
   (`x86:LE:16:Real Mode`) + MZ loader, this kit is not needed.
 - If the EXE is "bound" with a DOS4GW stub (typical), the loader finds the LE header itself.
@@ -26,7 +29,7 @@ Ghidra).
 
 `ghidra-lx-loader` (derived from yetmorecode/ghidra-lx-loader) is the only usable LE loader;
 an upstream release may not exist for your Ghidra version, so it is built from source
-(`build.ps1`). The loader sets up the objects from the LE table (including r/w/x permissions
+(`retrokit install-loader`). The loader sets up the objects from the LE table (including r/w/x permissions
 from the LE flags; typically code in object 1 from 0x10000, data in the next object – see
 `memory_blocks.txt`), **applies the fixups** (important – without them there are no references
 to strings/data) and writes them into the Ghidra relocation table.
@@ -38,7 +41,7 @@ to strings/data) and writes them into the Ghidra relocation table.
 - `__watcall`: register convention `-3r/-5r` (EAX, EDX, EBX, ECX), callee cleans up.
   The Watcom runtime (libc) mostly uses this convention.
 
-**How to tell which one applies:** `python tools\detect_cc.py GAME.EXE` (statistics over
+**How to tell which one applies:** `retrokit info GAME.EXE` (statistics over
 all `CALL`s in the code object, before import), or manually disassemble any game function
 (`DumpDisasm.java ADDR`): if `CALL` is preceded by `PUSH`es and followed by
 `ADD ESP,4/8/…` → stack (`-Cspec watcom`). If arguments are set with
@@ -56,7 +59,7 @@ argument register after the `CALL`. `x86watcom_reg.cspec` therefore models EBX/E
 `push ebx/ecx/edx` in a prologue, and lots of `undefined8` from the 64-bit output (see the
 comment in the cspec).
 
-## 2. Pipeline (`analyze.ps1`) – what it does and why
+## 2. LE pipeline (`retrokit analyze`) – what it does and why
 
 1. Import + standard auto-analysis (on the order of minutes for hundreds of KB of code).
 2. `CreateFunctionsFromFixups.java`: walks the relocation table; every 32-bit
@@ -136,19 +139,19 @@ If you kill the headless process, delete `ghidra_project\*.lock*`.
    structure. Save-game/demo file dumps are often verbatim copies – verify
    offsets against them.
 6. Constant tables are not readable in the decompilation (pointers in data are
-   **unrelocated** in the file): `tools/le.py rec ADDR N SIZE fmt` reads them
+   **unrelocated** in the file): `retrokit le GAME.EXE rec ADDR N SIZE fmt` reads them
    straight from the EXE (Ghidra addresses); add the object base to pointers (see
-   `memory_blocks.txt` or `le.py info`) or look in `fixups.txt`.
+   `memory_blocks.txt` or `retrokit le GAME.EXE info`) or look in `fixups.txt`.
 
 ## 4. Data formats (common in DOS-era games)
 
-- **RNC ProPack** (`RNC\x01`): `tools/rnc.py` (method 1, CRC verified).
+- **RNC ProPack** (`RNC\x01`): `retrokit rnc` (method 1, CRC verified).
   Common in both DOS and Amiga games.
 - `.TAB/.DAT` style sprite banks: TAB 6 B `{offset u32, w u8, h u8}`, RLE
   rows (0 end, <128 copy N, ≥128 skip 256−N).
 - 768 B palettes, 6-bit VGA.
 - **Autodesk FLIC** (FLI 0xAF11 / FLC 0xAF12, frames 0xF1FA): cutscenes as well as
-  animated sprites. `tools/flic.py info|png|video` – also handles the stripped 12-byte
+  animated sprites. `retrokit flic info|png|video` – also handles the stripped 12-byte
   header, 6/8-bit palette detected automatically. Games often change the frame rate during
   a video (a table of "cue" commands in the EXE: delays, sounds, music) – find the
   player (calls the FLIC decoder in a loop) and its table; then render the video
@@ -161,14 +164,14 @@ If you kill the headless process, delete `ghidra_project\*.lock*`.
 Once one game is analyzed (names in `notes\names_*.csv`), a second one on the same engine
 does not have to be analyzed from scratch:
 
-1. Run the new EXE through `analyze.ps1` as usual (cspec from `detect_cc.py`).
+1. Run the new EXE through `retrokit analyze` as usual.
 2. Copy `decomp\` to `decomp_unnamed\` (matching must run on an export without transferred names).
-3. `python tools\match_names.py --a-exe A.EXE --a-decomp A\decomp --a-names A\notes\merged\names_all.csv
+3. `retrokit match --a-exe A.EXE --a-decomp A\decomp --a-names A\notes\merged\names_all.csv
    --b-exe B.EXE --b-decomp B\decomp_unnamed --out B\notes\match --names-out B\notes\names_match.csv`
    – matches functions (bytes with masked fixups, unique string sets, call-graph neighbourhood,
    shared "anchors" = mapped global data + matched callees/callers, fuzzy instruction similarity);
    aligned instructions of matched functions vote on an A → B data address map (`data_map.csv`).
-4. `analyze.ps1 ... -SkipImport -Names B\notes\names_match.csv`.
+4. `retrokit names B B\notes\names_match.csv`.
 
 What stays unmatched is mostly functions that exist in only one EXE. Look for constant tables
 across EXEs first via `data_map.csv` (references from matched functions), then by content – watch
@@ -205,20 +208,21 @@ between an impression and a fact.
 - `-s` scripts: autoloads do not exist yet in `_init` – load scenes that
   use them in the first frame.
 
-## 7. Win32 PE (`analyze_pe.ps1`)
+## 7. Win32 PE pipeline
 
-1. `python -I tools\strings_scan.py GAME.EXE <out>\strings` – string inventory even before
+1. `retrokit strings GAME.EXE <out>\strings` – string inventory even before
    import (source paths from asserts, data file names, extensions).
-2. `pwsh analyze_pe.ps1 -Exe GAME.EXE -Out <out>` – import, auto-analysis, export
-   (+ `imports.txt` from `DumpImports.java`).
+2. `retrokit analyze GAME.EXE` – import, auto-analysis, entry passes (3.), the string /
+   parameter / prototype passes of the LE pipeline (MSVC `__cdecl` cleans up with `ADD ESP,n`
+   too, `__stdcall` with `RET n`), export (+ `imports.txt`, `fixups.txt` from the base relocations).
 3. Auto-analysis does not find functions called only through pointer tables (vtables, handler
    tables in `.rdata`/`.data`) or code after `CC` padding without direct references.
-   `tools\find_entries.py` lists such addresses in `.text` that are not in any function;
-   `analyze_pe.ps1 -SkipImport -Entries entries.txt` creates functions there
-   (`CreateFunctionsAtEntries.java` as a pre-script) and runs re-analysis and export.
-   Repeat while new addresses keep appearing.
+   `find_entries.py` lists such addresses in the code section that are not in any function;
+   the pipeline creates functions there (`CreateFunctionsAtEntries.java`), re-analyses and
+   repeats while new functions appear (`--entry-passes N`, default 3). `retrokit entries WS`
+   writes the list for a manual `retrokit reexport WS --entries FILE`.
 4. Programs with assert/log strings containing source paths (`.\ui\menu.cpp` + line number):
-   `tools\module_map.py` maps functions to source files and modules. Module rules
+   `retrokit modules WS --rules rules.tsv` maps functions to source files and modules. Module rules
    (`regex<TAB>module`, first match wins) live in the `--rules` file. Functions without a direct
    reference inherit the module from their neighbours (MSVC links object files contiguously).
-5. Names: the same `names_*.csv` format, `analyze_pe.ps1 -SkipImport -Names <out>\notes`.
+5. Names: the same `names_*.csv` format, `retrokit names WS`.

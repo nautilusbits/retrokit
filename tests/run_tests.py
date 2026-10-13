@@ -30,17 +30,23 @@ TOTALS = ["own_total", "lib_total", "calls_total", "strings_total"]
 
 
 def analyze(ghidra, variant):
+    """retrokit analyze with automatic format and calling-convention detection; the detected
+    cspec must be the one the variant was compiled for."""
     vdir = os.path.join(BUILD, variant)
     with open(os.path.join(vdir, "variant.json")) as fh:
         spec = json.load(fh)
+    out = os.path.join(vdir, "analysis")
     log = os.path.join(vdir, "analyze.log")
-    cmd = ["pwsh", "-NoProfile", "-File", os.path.join(KIT, "analyze.ps1"), "-Ghidra", ghidra,
-           "-Exe", os.path.join(vdir, "engine.exe"), "-Out", os.path.join(vdir, "analysis"),
-           "-Cspec", spec["cspec"]]
+    cmd = [sys.executable, "-m", "retrokit", "analyze", os.path.join(vdir, "engine.exe"), "-o", out,
+           "--ghidra", ghidra]
     with open(log, "w") as fh:
-        r = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT)
+        r = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT, cwd=KIT)
     if r.returncode:
-        raise RuntimeError("%s: analyze.ps1 failed (exit %d), see %s" % (variant, r.returncode, log))
+        raise RuntimeError("%s: retrokit analyze failed (exit %d), see %s" % (variant, r.returncode, log))
+    with open(os.path.join(out, "retrokit.json")) as fh:
+        detected = json.load(fh).get("cspec")
+    if spec["cspec"] and detected != spec["cspec"]:
+        raise RuntimeError("%s: detected cspec %s, expected %s" % (variant, detected, spec["cspec"]))
     return variant
 
 

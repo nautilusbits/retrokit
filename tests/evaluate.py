@@ -62,9 +62,10 @@ def source_strings():
 
 
 def parse_map(path):
-    """[(segment, offset, name, own)] for every symbol in the map's memory map."""
+    """[(segment, offset, name, own)] for every symbol in the map's memory map. Segmented
+    (LE: "0001:00000010") or flat (PE: "00401010", segment None) addresses."""
     syms, module, in_map = [], "", False
-    sym = re.compile(r'^([0-9a-f]{4}):([0-9a-f]{8})[+* ]\s+(\S+)')
+    sym = re.compile(r'^(?:([0-9a-f]{4}):)?([0-9a-f]{8})[+* ]\s+(\S+)')
     for line in open(path, errors="replace"):
         if line.startswith("Module:"):
             module = line[7:].strip()
@@ -72,7 +73,8 @@ def parse_map(path):
             continue
         m = sym.match(line) if in_map else None
         if m:
-            syms.append((int(m.group(1), 16), int(m.group(2), 16), m.group(3), ".lib(" not in module.lower()))
+            seg = int(m.group(1), 16) if m.group(1) else None
+            syms.append((seg, int(m.group(2), 16), m.group(3), ".lib(" not in module.lower()))
     return syms
 
 
@@ -81,12 +83,15 @@ def norm(name):
 
 
 def parse_blocks(path):
-    """object number -> (start, end, perm) from memory_blocks.txt"""
+    """block key -> (start, end, perm) from memory_blocks.txt: LE objects keyed by number (the
+    map's segment), PE sections by name"""
     blocks = {}
     for row in csv.DictReader(open(path), delimiter="\t"):
+        if not re.match(r'^[0-9a-f]+$', row["start"]):
+            continue    # overlay blocks such as .image::00000000
         m = re.match(r'\.object(\d+)$', row["name"])
-        if m:
-            blocks[int(m.group(1))] = (int(row["start"], 16), int(row["end"], 16), row["perm"])
+        key = int(m.group(1)) if m else row["name"]
+        blocks[key] = (int(row["start"], 16), int(row["end"], 16), row["perm"])
     return blocks
 
 
@@ -124,12 +129,15 @@ def evaluate(vdir, verbose=False):
     decomp = os.path.join(vdir, "analysis", "decomp")
     src = parse_sources()
     blocks = parse_blocks(os.path.join(decomp, "memory_blocks.txt"))
-    code_obj = min(k for k, v in blocks.items() if "x" in v[2])
+    code_obj = min((k for k, v in blocks.items() if "x" in v[2]), key=lambda k: blocks[k][0])
     code_start, code_end = blocks[code_obj][0], blocks[code_obj][1]
 
     truth = {}   # addr -> (name, own)
     for seg, off, name, own in parse_map(os.path.join(vdir, "engine.map")):
-        if seg == code_obj:
+        if seg is None:     # flat map (PE): absolute addresses
+            if code_start <= off <= code_end:
+                truth.setdefault(off, (norm(name), own))
+        elif seg == code_obj:
             truth.setdefault(blocks[seg][0] + off, (norm(name), own))
     addrs = sorted(truth)
     size_of = {a: (addrs[i + 1] if i + 1 < len(addrs) else code_end) - a for i, a in enumerate(addrs)}

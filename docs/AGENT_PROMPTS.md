@@ -14,9 +14,9 @@ Workspace: <OUT>
   strings.txt, data_symbols.txt.
 - LE only: fixups.txt (source addr -> target addr, type, kind FUNC/INFUNC/DATA, containing
   function, target string). Function pointers stored in data = kind FUNC with source >= data base.
-  tools\le.py (set LE_EXE) reads raw constant tables from the EXE at Ghidra addresses.
-- PE only: imports.txt (LIB, name, IAT slots); optional module map from tools\module_map.py.
-- tools\showfn.py: `python showfn.py --dir <OUT>\decomp FUN_00012345 ...` prints functions.
+  `retrokit le <EXE> rec ADDR N SIZE [fmt]` reads raw constant tables from the EXE at Ghidra addresses.
+- PE only: imports.txt (LIB, name, IAT slots); optional module map from `retrokit modules <OUT>`.
+- `retrokit show <OUT> FUN_00012345 ...` prints functions, `retrokit tables <OUT>` pointer tables.
   Prefer it over reading the whole file. Grep the .c for globals (DAT_xxx).
 - Known facts: <calling convention, identified helpers, anchors found so far>.
 - Reference data: <save/demo dumps, extracted assets, format docs>.
@@ -63,6 +63,5 @@ in a modern engine. Give a "parameter summary" table for the target engine.
 ```
 
 When done: check the reported "pitfalls" (no-return errors, functions that were not
-created), apply the names (`analyze.ps1` / `analyze_pe.ps1` with `-SkipImport -Names <OUT>\notes`)
-and re-export; copy the agents' helper scripts from their temporary scratchpad to
+created), apply the names (`retrokit names <OUT>`, which re-exports); copy the agents' helper scripts from their temporary scratchpad to
 `notes\data\`, otherwise they are lost.

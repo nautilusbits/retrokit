@@ -14,10 +14,10 @@ ghidra_project/
 *.LX
 
 # build output / release artifacts
-ghidra-lx-loader/build/
-ghidra-lx-loader/dist/
-ghidra-lx-loader/prebuilt_*.zip
-ghidra-lx-loader/lib/ghidra-lx-loader-src.zip
+retrokit/ghidra-lx-loader/build/
+retrokit/ghidra-lx-loader/dist/
+retrokit/ghidra-lx-loader/prebuilt_*.zip
+retrokit/ghidra-lx-loader/lib/ghidra-lx-loader-src.zip
 
 # Python
 __pycache__/
@@ -27,3 +27,5 @@ __pycache__/
 
 # test fixtures built by tests/build_fixtures.py
 tests/fixtures/build/
+/build/
+/dist/

@@ -19,7 +19,7 @@ python match_names.py --a-exe A.EXE --a-decomp a_analysis/decomp --a-names a_ana
                       --b-exe B.EXE --b-decomp b_analysis/decomp_unnamed --out b_analysis/notes/match
                       [--names-out b_analysis/notes/names_a_match.csv]
   -> <out>/func_map.csv (A addr, name, B addr, method, score), data_map.csv (A data addr -> B, votes),
-     stats.txt and a names CSV for analyze.ps1 -SkipImport -Names (exact / >= 0.9 matches keep A's
+     stats.txt and a names CSV for `retrokit names` (exact / >= 0.9 matches keep A's
      confidence, weaker ones become G; data labels are always G: the address is the same slot in matched
      code, but the variable can mean something else in B).
 Use B's pre-rename export (copy decomp/ to decomp_unnamed/ before applying names).

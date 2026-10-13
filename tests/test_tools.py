@@ -15,7 +15,7 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(HERE)
-TOOLS = os.path.join(KIT, "tools")
+TOOLS = os.path.join(KIT, "retrokit", "tools")
 BUILD = os.path.join(HERE, "fixtures", "build")
 sys.path.insert(0, TOOLS)
 sys.path.insert(0, HERE)
@@ -31,7 +31,9 @@ def load_json(path):
 
 
 def built_variants():
-    return [os.path.dirname(p) for p in sorted(glob.glob(os.path.join(BUILD, "*", "variant.json")))]
+    """built LE variants (the PE one has no calling-convention detection / LE reader)"""
+    return [os.path.dirname(p) for p in sorted(glob.glob(os.path.join(BUILD, "*", "variant.json")))
+            if load_json(p).get("cspec")]
 
 
 def run_tool(script, *args, env=None):

@@ -8,8 +8,9 @@ library signatures are shipped only when built from open-source or public-domain
 
 1. ~~License (Apache 2.0), repository hygiene~~
 2. ~~Test corpus: synthetic programs built with Open Watcom, scored against the linker map, CI~~
-3. Python CLI (`retrokit doctor | install-loader | analyze | show | names | extract`), automatic
-   format and calling-convention detection, settings remembered per workspace, cross-platform
+3. ~~Python CLI (`retrokit doctor | install-loader | info | analyze | reexport | names | show | ...`),
+   automatic format and calling-convention detection, settings remembered per workspace,
+   PowerShell scripts replaced (Linux run in CI not verified yet)~~
 4. Own LE/LX loader, validated against the current one on the test corpus; Watcom debug info,
    PMODE/W compressed pages
 5. Library knowledge base: detection rules (strings, imports, file signatures), prototypes,

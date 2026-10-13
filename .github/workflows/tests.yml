@@ -18,11 +18,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install capstone
+      - run: pip install .
+      - run: retrokit --help
       - run: python -m unittest discover -s tests -v
 
   pipeline:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    # the Linux run is not verified yet
+    continue-on-error: ${{ matrix.os == 'ubuntu-latest' }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -34,7 +41,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - run: pip install capstone
+      - run: pip install -e .
 
       - name: Cache Ghidra and Open Watcom
         id: cache
@@ -43,32 +50,38 @@ jobs:
           path: |
             ${{ runner.temp }}/${{ env.GHIDRA_DIR }}
             ${{ runner.temp }}/openwatcom
-          key: tools-${{ env.GHIDRA_TAG }}-${{ env.OW_TAG }}
+          key: tools-${{ runner.os }}-${{ env.GHIDRA_TAG }}-${{ env.OW_TAG }}
 
       - name: Download Ghidra and Open Watcom
         if: steps.cache.outputs.cache-hit != 'true'
-        shell: pwsh
+        shell: bash
         run: |
-          gh release download $env:GHIDRA_TAG -R NationalSecurityAgency/ghidra -p $env:GHIDRA_ZIP -D $env:RUNNER_TEMP
-          Expand-Archive (Join-Path $env:RUNNER_TEMP $env:GHIDRA_ZIP) $env:RUNNER_TEMP
-          gh release download $env:OW_TAG -R open-watcom/open-watcom-v2 -p ow-snapshot.tar.xz -D $env:RUNNER_TEMP
-          New-Item -ItemType Directory (Join-Path $env:RUNNER_TEMP openwatcom) | Out-Null
-          tar -xJf (Join-Path $env:RUNNER_TEMP ow-snapshot.tar.xz) -C (Join-Path $env:RUNNER_TEMP openwatcom)
+          gh release download "$GHIDRA_TAG" -R NationalSecurityAgency/ghidra -p "$GHIDRA_ZIP" -D "$RUNNER_TEMP"
+          python -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$RUNNER_TEMP/$GHIDRA_ZIP" "$RUNNER_TEMP"
+          chmod +x "$RUNNER_TEMP/$GHIDRA_DIR/support/"* "$RUNNER_TEMP/$GHIDRA_DIR/Ghidra/Features/Decompiler/os/"*/* || true
+          gh release download "$OW_TAG" -R open-watcom/open-watcom-v2 -p ow-snapshot.tar.xz -D "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/openwatcom"
+          tar -xJf "$RUNNER_TEMP/ow-snapshot.tar.xz" -C "$RUNNER_TEMP/openwatcom"
 
       - name: Install LE loader
-        shell: pwsh
-        run: pwsh ghidra-lx-loader/build.ps1 -GhidraDir (Join-Path $env:RUNNER_TEMP $env:GHIDRA_DIR)
+        shell: bash
+        run: retrokit install-loader --ghidra "$RUNNER_TEMP/$GHIDRA_DIR"
+
+      - name: Doctor
+        shell: bash
+        run: retrokit doctor --ghidra "$RUNNER_TEMP/$GHIDRA_DIR"
 
       - name: Build fixtures, run pipeline, compare with baseline
-        shell: pwsh
+        shell: bash
         run: |
-          $env:GHIDRA_INSTALL_DIR = Join-Path $env:RUNNER_TEMP $env:GHIDRA_DIR
-          $env:WATCOM = Join-Path $env:RUNNER_TEMP openwatcom
+          export GHIDRA_INSTALL_DIR="$RUNNER_TEMP/$GHIDRA_DIR" WATCOM="$RUNNER_TEMP/openwatcom"
           python tests/run_tests.py -v
           python -m unittest discover -s tests -v
 
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: analyze-logs
-          path: tests/fixtures/build/*/analyze.log
+          name: analyze-logs-${{ matrix.os }}
+          path: |
+            tests/fixtures/build/*/analyze.log
+            tests/fixtures/build/*/analysis/logs/*.log

@@ -26,6 +26,7 @@ VARIANTS = {
     "dos32a_r": ("dos32a", ["-5r", OPT], "watcomreg", None),
     "pmodew_s": ("pmodew", ["-5s", OPT], "watcom", None),
     "dos4g_s_od": ("dos4g", ["-5s", "-od"], "watcom", None),
+    "nt_s": ("nt", ["-5s", OPT], None, None),          # Win32 PE console program, PE pipeline
     # TODO: PMODE/W compressed pages (pmwlite is a DOS program, needs DOSBox to run)
 }
 
@@ -45,10 +46,12 @@ def build(watcom, out, name):
     shutil.rmtree(vdir, ignore_errors=True)
     os.makedirs(vdir)
     hb = host_bin(watcom)
-    env = dict(os.environ, WATCOM=watcom, INCLUDE=os.path.join(watcom, "h"))
+    target = "nt" if system == "nt" else "dos"
+    inc = [os.path.join(watcom, "h")] + ([os.path.join(watcom, "h", "nt")] if target == "nt" else [])
+    env = dict(os.environ, WATCOM=watcom, INCLUDE=os.pathsep.join(inc))
     env["PATH"] = hb + os.pathsep + os.path.join(watcom, "binw") + os.pathsep + env.get("PATH", "")
     srcs = sorted(glob.glob(os.path.join(SRC, "*.c")))
-    cmd = [os.path.join(hb, "wcl386"), "-q", "-bt=dos", "-l=" + system, "-fe=engine.exe",
+    cmd = [os.path.join(hb, "wcl386"), "-q", "-bt=" + target, "-l=" + system, "-fe=engine.exe",
            "-fm=engine.map", "-i=" + SRC] + cflags + srcs
     subprocess.run(cmd, cwd=vdir, env=env, check=True)
     if post == "pmwlite":

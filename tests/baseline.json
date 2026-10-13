@@ -87,6 +87,28 @@
   "warnings": 74,
   "warnings_own": 1
  },
+ "nt_s": {
+  "calls_args_ok": 40,
+  "calls_total": 40,
+  "extraout": 54,
+  "extraout_own": 4,
+  "in_reg": 332,
+  "in_reg_own": 0,
+  "lib_found": 168,
+  "lib_total": 199,
+  "own_found": 28,
+  "own_params_ok": 27,
+  "own_total": 28,
+  "own_truncated": 0,
+  "strings_found": 24,
+  "strings_total": 24,
+  "unaff": 297,
+  "unaff_own": 0,
+  "undefined8": 8,
+  "undefined8_own": 3,
+  "warnings": 216,
+  "warnings_own": 0
+ },
  "pmodew_s": {
   "calls_args_ok": 40,
   "calls_total": 40,

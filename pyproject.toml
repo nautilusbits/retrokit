@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retrokit"
+dynamic = ["version"]
+description = "Headless Ghidra toolkit for reverse engineering old DOS (LE/LX, Watcom) and Win32 PE games"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.10"
+dependencies = ["capstone>=5"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Disassemblers",
+]
+
+[project.optional-dependencies]
+images = ["Pillow"]
+
+[project.scripts]
+retrokit = "retrokit.cli:main"
+
+[tool.setuptools]
+packages = ["retrokit"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "retrokit.__version__" }
+
+[tool.setuptools.package-data]
+retrokit = [
+    "ghidra_scripts/*.java",
+    "tools/*.py",
+    "ghidra-lx-loader/*",
+    "ghidra-lx-loader/data/**/*",
+    "ghidra-lx-loader/ghidra_scripts/**/*",
+    "ghidra-lx-loader/lib/*.jar",
+    "ghidra-lx-loader/lib/README.txt",
+    "ghidra-lx-loader/src/**/*",
+]
+
+[tool.setuptools.exclude-package-data]
+retrokit = ["ghidra-lx-loader/prebuilt_*.zip", "ghidra-lx-loader/lib/*-src.zip", "ghidra-lx-loader/build/**"]
