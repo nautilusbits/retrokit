@@ -113,10 +113,21 @@ masked; calls to other library functions are kept as callee names and confirm sh
 ambiguous matches (functions with identical code such as `atoi`/`atol` get the documented name
 and a `G` comment). The shipped sets (`retrokit/sigs/`) come from Open Watcom 2.0 and 1.9
 (`clib3r`/`clib3s` + `math3r`/`math3s`, DOS) and name ~90 % of the run-time of a program built
-with those compilers, with no wrong names on the test programs. Code compiled with the
-original Watcom 10.x/11.0 run-time differs byte for byte from Open Watcom, so few functions
-match there. If you own such a compiler, build signatures from its libraries – they stay on
-your machine and are picked up automatically from `~/.retrokit/sigs/`:
+with those compilers, with no wrong names on the test programs.
+
+Code from another compiler version (the original Watcom 10.x/11.0 run-time) differs byte for
+byte, so few functions match exactly. A **fuzzy tier** follows: every call target and code
+pointer the exact pass did not name is compared with the signatures as a normalised
+instruction stream (registers abstracted, addresses masked; sequence similarity plus an
+order-free comparison for moved blocks); a name is taken at similarity >= 0.80 (0.70 with an
+agreeing callee) when it beats every other name by 0.08, and short functions that only call
+others need a matching callee. Fuzzy names are always `G`. Measured: between Open Watcom 1.9
+and 2.0 it adds ~20 correct names per test program (one wrong: a function renamed between the
+versions); on a 1994 Watcom 10.0 program it raised the named run-time from 17 to 73 functions.
+`--exact-sigs` (analyze) / `--exact` (sigs match) switch it off.
+
+If you own an old Watcom, build signatures from its libraries – they stay on your machine and
+are picked up automatically from `~/.retrokit/sigs/`:
 
 ```
 retrokit sigs build --watcom C:\WATCOM --lib C:\WATCOM\lib386\dos\clib3r.lib --lib C:\WATCOM\lib386\math3r.lib -o ~/.retrokit/sigs/watcom106-clib3r.sig

@@ -63,7 +63,8 @@ What the pipeline does:
 
 - **Library functions** (both formats): the Watcom C run-time is found by signature (shipped,
   built from Open Watcom; `retrokit sigs build` makes them from libraries you own, `sigs learn`
-  from functions you identified), named, and typed from `retrokit/knowledge/*.h`.
+  from functions you identified) - exact matches first, then similar code from other compiler
+  versions - named, and typed from `retrokit/knowledge/*.h`.
 - **LE/LX**: import with the LE loader and the Watcom cspec, functions at the targets of fixups
   into code (Watcom games call much of their logic through pointer tables), `switch` jump tables
   kept inside their functions, wrong "no return" flags undone, short strings defined and string

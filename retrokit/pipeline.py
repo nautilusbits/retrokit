@@ -65,7 +65,7 @@ def library_names(ws, d, out):
     (None, None). Kept out of notes/ itself so that 'retrokit names' applies the user's names first."""
     if not ws.get("sigs", True):
         return None, None
-    found, n = sigs.match_file(ws["exe"], ws.get("sig_files"))
+    found, n = sigs.match_file(ws["exe"], ws.get("sig_files"), fuzzy=ws.get("fuzzy_sigs", True))
     if not found:
         out("library signatures: none found (%d signatures)" % n)
         return None, None

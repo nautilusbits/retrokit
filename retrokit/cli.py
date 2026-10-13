@@ -93,7 +93,7 @@ def _new_workspace(a):
     out = os.path.abspath(a.out or wsp.default_dir(exe))
     ws = {"dir": out, "exe": exe, "format": info["format"], "pipeline": info["pipeline"],
           "cname": a.cname or os.path.splitext(os.path.basename(exe))[0].lower() + "_decompiled.c",
-          "prototypes": not a.no_prototypes, "sigs": not a.no_sigs}
+          "prototypes": not a.no_prototypes, "sigs": not a.no_sigs, "fuzzy_sigs": not a.exact_sigs}
     if a.sigs:
         ws["sig_files"] = [os.path.abspath(x) for x in a.sigs]
     if info["pipeline"] == "le":
@@ -194,7 +194,7 @@ def cmd_sigs(a):
         raise SystemExit("sigs match needs an executable or workspace")
     exe = _workspace(a.exe)["exe"] if wsp.is_workspace(a.exe) else a.exe
     files = sigs.sig_files(a.sigs)
-    found, n = sigs.match_file(exe, files)
+    found, n = sigs.match_file(exe, files, fuzzy=not a.exact)
     out = a.output or (os.path.join(wsp.sub(_workspace(a.exe), "notes"), "sigs", "names_sigs.csv")
                        if wsp.is_workspace(a.exe) else None)
     print("%d signatures from %d files, %d functions found (%d V, %d G)" % (
@@ -245,6 +245,7 @@ def build_parser():
     s.add_argument("--no-sigs", action="store_true", help="do not name library functions by signature")
     s.add_argument("--sigs", action="append", metavar="FILE|DIR",
                    help="signature files to use instead of the shipped ones + ~/.retrokit/sigs (repeatable)")
+    s.add_argument("--exact-sigs", action="store_true", help="library signatures: exact matches only (no fuzzy tier)")
     s.add_argument("--entry-passes", type=int, default=3, help="PE: find_entries rounds after the first export")
     s.add_argument("--names", help="names_*.csv file or directory to apply before export")
     s.add_argument("--entries", help="file with hex addresses to create functions at")
@@ -281,6 +282,7 @@ def build_parser():
                               "or learn them from the named functions of a workspace")
     s.add_argument("action", choices=["match", "build", "learn"])
     s.add_argument("exe", nargs="?", help="match: executable or workspace; learn: workspace")
+    s.add_argument("--exact", action="store_true", help="match: exact matches only (no fuzzy tier)")
     s.add_argument("--names", help="learn: only the addresses of this names CSV (default: every named function)")
     s.add_argument("--sigs", action="append", help="match: .sig file or directory (default: shipped + ~/.retrokit/sigs)")
     s.add_argument("-o", "--output", help="match: names CSV (default <workspace>/notes/sigs/names_sigs.csv); build, learn: .sig file")

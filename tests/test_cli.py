@@ -180,6 +180,30 @@ class TestSigs(unittest.TestCase):
             self.assertGreaterEqual(len(right), minimum, name)
             self.assertEqual(len(right) + len(unlisted), len(found), name)
 
+    def test_fuzzy_other_version(self):
+        """Open Watcom 1.9 signatures on programs built with Open Watcom 2: the fuzzy tier
+        names functions whose code changed between the versions"""
+        sys.path.insert(0, HERE)
+        import evaluate
+        exe = variant("dos4g_s")
+        if not exe:
+            self.skipTest("dos4g_s not built")
+        le = formats.LinearExecutable(exe)
+        bases = le.bases()
+        names = {}
+        for seg, off, sym, own in evaluate.parse_map(os.path.join(BUILD, "dos4g_s", "engine.map")):
+            if seg in bases:
+                names.setdefault(bases[seg] + off, set()).add(evaluate.norm(sym))
+        ow19 = [os.path.join(sigs.SHIPPED, "watcom-ow19-dos-clib3s.sig.gz")]
+        exact, _ = sigs.match_file(exe, ow19, fuzzy=False)
+        both, _ = sigs.match_file(exe, ow19)
+        added = {a: v for a, v in both.items() if a not in exact}
+        right = [a for a, v in added.items() if evaluate.norm(v[0]) in names.get(a, ())]
+        wrong = [a for a, v in added.items() if a in names and evaluate.norm(v[0]) not in names[a]]
+        self.assertGreaterEqual(len(right), 15)
+        self.assertLessEqual(len(wrong), 1)     # __SetIOMode: renamed __SetIOMode_grow in OW 2
+        self.assertTrue(all(v[1] == "G" for v in added.values()))
+
 
 if __name__ == "__main__":
     unittest.main()

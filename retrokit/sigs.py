@@ -318,6 +318,29 @@ def code_regions(path):
     raise formats.FormatError("%s: neither LE/LX nor PE" % path)
 
 
+def code_pointers(path):
+    """addresses in the code that pointers point at: LE/LX internal 32-bit fixup targets, PE
+    dwords anywhere in the image that fall into an executable section"""
+    data = open(path, "rb").read()
+    regions = code_regions(path)
+
+    def in_code(t):
+        return any(base <= t < base + len(buf) for base, buf in regions)
+    out = set()
+    if formats.find_le(data) is not None:
+        le = formats.LinearExecutable(data=data)
+        _, relocs, _ = le.loaded()
+        for src, status, v in relocs.values():
+            if src == 7 and status == "APPLIED" and in_code(v):
+                out.add(v)
+        return out
+    for p in range(0, len(data) - 3, 4):
+        v = struct.unpack_from("<I", data, p)[0]
+        if in_code(v):
+            out.add(v)
+    return out
+
+
 def clean_name(name):
     """C name of a Watcom symbol: register-convention 'strlen_' -> 'strlen'"""
     return name[:-1] if name.endswith("_") and len(name) > 1 and not name.endswith("__") else name
@@ -490,14 +513,20 @@ def match(regions, sigs):
     return found
 
 
-def match_file(exe, sig_paths=None):
-    """match the signature files (sig_files() resolves None to the defaults) in an executable"""
+def match_file(exe, sig_paths=None, fuzzy=True):
+    """match the signature files (sig_files() resolves None to the defaults) in an executable:
+    exact matches, then (fuzzy=True) similar code for the rest - see fuzzy.py"""
     sigs = []
     for p in sig_files(sig_paths):
         sigs += read(p)
     if not sigs:
         return {}, 0
-    return match(code_regions(exe), sigs), len(sigs)
+    regions = code_regions(exe)
+    found = match(regions, sigs)
+    if fuzzy:
+        from . import fuzzy as fz
+        fz.match(regions, sigs, found, clean_name, _function_end, code_pointers(exe), _preference)
+    return found, len(sigs)
 
 
 def write_names(path, found):
