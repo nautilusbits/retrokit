@@ -270,7 +270,8 @@ def match(regions, sigs, found, clean_name, function_end, relocs=None, prefer=No
                 for i in model.index.get(g, ()):
                     votes[i] += 1
             best = {}
-            for i, _ in votes.most_common(TOP):
+            # ties broken by signature order, not by set iteration order (hash randomisation)
+            for i, _ in sorted(votes.items(), key=lambda kv: (-kv[1], kv[0]))[:TOP]:
                 s, st, ss, names = model.items[i]
                 r = similarity(toks, shapes, st, ss, bag, model.bags[i])
                 if r < ACCEPT_CALLEES:

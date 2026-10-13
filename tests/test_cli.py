@@ -180,6 +180,19 @@ class TestSigs(unittest.TestCase):
             self.assertGreaterEqual(len(right), minimum, name)
             self.assertEqual(len(right) + len(unlisted), len(found), name)
 
+    def test_deterministic(self):
+        """the same names whatever Python's hash seed (set iteration order must not decide ties)"""
+        exe = variant("os2_r") or variant("dos4g_s")
+        if not exe:
+            self.skipTest("fixtures not built")
+        import subprocess
+        out = set()
+        for seed in ("1", "2", "3"):
+            r = subprocess.run([sys.executable, "-m", "retrokit", "sigs", "match", exe], capture_output=True, text=True,
+                               cwd=os.path.dirname(HERE), env=dict(os.environ, PYTHONHASHSEED=seed))
+            out.add(r.stdout)
+        self.assertEqual(len(out), 1)
+
     def test_fuzzy_other_version(self):
         """Open Watcom 1.9 signatures on programs built with Open Watcom 2: the fuzzy tier
         names functions whose code changed between the versions"""
