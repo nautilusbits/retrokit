@@ -61,10 +61,14 @@ collisions get `_<addr>`) and re-exports.
 
 What the pipeline does:
 
-- **Library functions** (both formats): the Watcom C run-time is found by signature (shipped,
-  built from Open Watcom; `retrokit sigs build` makes them from libraries you own, `sigs learn`
-  from functions you identified) - exact matches first, then similar code from other compiler
-  versions - named, and typed from `retrokit/knowledge/*.h`.
+- **Libraries** (both formats): `retrokit libs` (also part of `info` and `analyze` ->
+  `notes/libraries.md`) recognises ~20 libraries of the period - Miles/AIL, HMI SOS, DIGPAK,
+  Smacker, Bink, FMOD, BASS, DirectX, zlib, libjpeg, libpng, PKWARE DCL, Lua, ... - from
+  strings, imports and data files, with version, notes on their formats and port hints.
+  Library code is found by signature (shipped: Watcom C/C++ run-time, math and C++ libraries
+  from Open Watcom, zlib 1.0.4-1.2.3, libjpeg 6b; `retrokit sigs build` makes them from
+  libraries you own, `sigs learn` from functions you identified) - exact matches first, then
+  similar code from other compiler versions - named, and typed from `retrokit/knowledge/*.h`.
 - **LE/LX**: import with the LE loader and the Watcom cspec, functions at the targets of fixups
   into code (Watcom games call much of their logic through pointer tables), `switch` jump tables
   kept inside their functions, wrong "no return" flags undone, short strings defined and string
@@ -74,7 +78,8 @@ What the pipeline does:
   targets and after padding until no new ones turn up, the same string / parameter / prototype
   passes, export.
 
-Other commands: `sigs match|build|learn` (library signatures, see `docs/WORKFLOW.md`),
+Other commands: `libs` (libraries in use), `sigs match|build|learn` (library signatures, see
+`docs/WORKFLOW.md`),
 `entries` (PE: code addresses without a function), `modules --rules FILE`
 (PE: functions → original source files via assert paths), `strings EXE OUT` (PE string inventory
 without Ghidra), `match` (transfer names to a related EXE: sequel, add-on, other version),
@@ -92,7 +97,8 @@ retrokit/               Python package (CLI: retrokit/cli.py)
   tools/                standalone Python tools behind the CLI commands
   le-loader/            LE/LX loader for Ghidra (Java) + Watcom compiler specs (data/languages/)
   sigs/                 library signatures (Open Watcom C run-time)
-  knowledge/            library prototypes as C headers
+  knowledge/            libraries.json (library catalog), library prototypes as C headers
+scripts/                build_sigs.py: rebuilds the shipped signatures
 tests/                  synthetic test programs, scoring against the linker map, baseline
 docs/                   WORKFLOW, AGENT_PROMPTS, ROADMAP
 ```

@@ -1,0 +1,445 @@
+{
+ "about": "Libraries common in 32-bit DOS and Win32 games of about 1993-2010: how to recognise them in a game (strings in the executable, imported DLLs, files next to it), what the kit can do for them and what to know when reading or porting the code. Evidence: 'strings' are byte strings searched in the executable (case-sensitive, one hit is enough), 'version' a regular expression whose group 1 is the version, 'imports' DLL names (PE), 'import_prefix' imported function name prefixes, 'files' file name patterns searched in the game directory (case-insensitive), 'magic' the first bytes of data files there. Prototypes and signatures name the kit's files.",
+ "libraries": [
+  {
+   "id": "watcom-crt",
+   "name": "Watcom C/C++ run-time library",
+   "vendor": "Watcom / Sybase (Open Watcom)",
+   "license": "proprietary (Open Watcom: Sybase Open Watcom Public License)",
+   "platforms": [
+    "dos",
+    "win32",
+    "os2"
+   ],
+   "strings": [
+    "WATCOM C/C++",
+    "Open Watcom"
+   ],
+   "version": "WATCOM C/C\\+\\+(?:32|16)? Run-Time system\\. \\(c\\) Copyright by WATCOM International Corp\\. 1988-(\\d{4})",
+   "signatures": "watcom-*",
+   "prototypes": "watcom_clib.h",
+   "notes": "Statically linked into every Watcom program. The copyright year in the run-time banner dates the compiler (1994: 10.0, 1995: 10.5, 1996: 10.6, 1997-1998: 11.0). Shipped signatures are Open Watcom 1.9/2.0; build your own from an original compiler with 'retrokit sigs build'. Register convention: arguments in EAX, EDX, EBX, ECX; variadic functions take them on the stack."
+  },
+  {
+   "id": "miles",
+   "name": "Miles Sound System / Audio Interface Library (AIL)",
+   "vendor": "Miles Design, later RAD Game Tools",
+   "license": "proprietary (AIL 2.0 for 16-bit DOS was put in the public domain)",
+   "platforms": [
+    "dos",
+    "win32"
+   ],
+   "strings": [
+    "Miles Sound System",
+    "Miles Design",
+    "AIL_startup",
+    "AIL_set_preference"
+   ],
+   "imports": [
+    "MSS32.DLL",
+    "MSS16.DLL",
+    "WAIL32.DLL"
+   ],
+   "import_prefix": [
+    "_AIL_",
+    "AIL_"
+   ],
+   "files": [
+    "*.DIG",
+    "*.MDI",
+    "DIG.INI",
+    "MDI.INI",
+    "*.XMI",
+    "MSS32.DLL",
+    "*.M3D",
+    "*.FLT",
+    "*.ASI"
+   ],
+   "notes": "Digital audio and MIDI through loadable drivers (.DIG digital, .MDI MIDI; the setup program writes DIG.INI / MDI.INI). Music is usually Extended MIDI (XMIDI, .XMI: IFF 'FORM XDIR'/'XMID' with per-sequence timbre lists); convert it to standard MIDI for a port. Win32 versions export AIL_* functions by name from MSS32.DLL, which names the call sites directly. Statically linked DOS builds need learned signatures ('retrokit sigs learn'). Port: an audio mixer (SDL_mixer, miniaudio) plus an XMIDI-to-MIDI converter and a General MIDI synthesizer.",
+   "magic": [
+    "FORM\u0000\u0000\u0000\u000eXDIR"
+   ]
+  },
+  {
+   "id": "hmi-sos",
+   "name": "HMI Sound Operating System (SOS)",
+   "vendor": "Human Machine Interfaces",
+   "license": "proprietary",
+   "platforms": [
+    "dos",
+    "win32"
+   ],
+   "strings": [
+    "Human Machine Interfaces",
+    "HMIDRV.386",
+    "HMIMDRV.386",
+    "HMIDET.386"
+   ],
+   "files": [
+    "HMI*.386",
+    "*.HMP",
+    "*.HMI",
+    "HMISET.CFG"
+   ],
+   "notes": "Sound and music library of many mid-1990s DOS games; drivers in HMIDRV.386 / HMIMDRV.386, music in HMI's MIDI variants (.HMP, .HMI), which convert to standard MIDI. Port: audio mixer plus HMP-to-MIDI conversion."
+  },
+  {
+   "id": "digpak",
+   "name": "DIGPAK / MIDPAK",
+   "vendor": "The Audio Solution (John W. Ratcliff), drivers by John Miles",
+   "license": "freely distributable drivers",
+   "platforms": [
+    "dos"
+   ],
+   "strings": [
+    "MIDPAK",
+    "DIGPAK",
+    "SOUNDRV.COM",
+    "MIDPAK.COM"
+   ],
+   "files": [
+    "MIDPAK.COM",
+    "SOUNDRV.COM",
+    "MIDPAK.AD*",
+    "*.XMI"
+   ],
+   "notes": "TSR sound drivers loaded before the game and called through a software interrupt (DIGPAK: INT 66h) rather than linked code. MIDPAK plays XMIDI."
+  },
+  {
+   "id": "diamondware",
+   "name": "DiamondWare Sound ToolKit",
+   "vendor": "DiamondWare",
+   "license": "proprietary",
+   "platforms": [
+    "dos",
+    "win32"
+   ],
+   "strings": [
+    "DiamondWare"
+   ],
+   "notes": "Digitized sound and music mixing toolkit for DOS and Windows."
+  },
+  {
+   "id": "smacker",
+   "name": "Smacker video",
+   "vendor": "RAD Game Tools",
+   "license": "proprietary",
+   "platforms": [
+    "dos",
+    "win32"
+   ],
+   "strings": [
+    "Smacker",
+    "SMK2",
+    "SMK4"
+   ],
+   "imports": [
+    "SMACKW32.DLL"
+   ],
+   "import_prefix": [
+    "_Smack",
+    "Smack"
+   ],
+   "files": [
+    "*.SMK",
+    "SMACKW32.DLL"
+   ],
+   "notes": "8-bit palettised video (.SMK, signature 'SMK2'/'SMK4'). The Win32 API is exported by name from SMACKW32.DLL (SmackOpen, SmackDoFrame, SmackNextFrame, SmackWait, SmackToBuffer, SmackClose); DOS games link it statically. Port: FFmpeg or libsmacker decode .SMK; 'retrokit flic' covers the older Autodesk FLI/FLC instead.",
+   "magic": [
+    "SMK2",
+    "SMK4"
+   ]
+  },
+  {
+   "id": "bink",
+   "name": "Bink video",
+   "vendor": "RAD Game Tools",
+   "license": "proprietary",
+   "platforms": [
+    "win32"
+   ],
+   "strings": [
+    "BINKW32.DLL"
+   ],
+   "imports": [
+    "BINKW32.DLL"
+   ],
+   "import_prefix": [
+    "_Bink",
+    "Bink"
+   ],
+   "files": [
+    "*.BIK",
+    "BINKW32.DLL"
+   ],
+   "notes": "Video codec from 1999 on (.BIK, signature 'BIK'). API exported by name from BINKW32.DLL (BinkOpen, BinkDoFrame, BinkNextFrame, BinkWait, BinkCopyToBuffer, BinkClose). Port: FFmpeg decodes Bink 1.",
+   "magic": [
+    "BIK"
+   ]
+  },
+  {
+   "id": "granny",
+   "name": "Granny 3D",
+   "vendor": "RAD Game Tools",
+   "license": "proprietary",
+   "platforms": [
+    "win32"
+   ],
+   "imports": [
+    "GRANNY2.DLL"
+   ],
+   "import_prefix": [
+    "_Granny",
+    "Granny"
+   ],
+   "files": [
+    "*.GR2",
+    "GRANNY2.DLL"
+   ],
+   "notes": "3D model and animation runtime (.gr2 files). API exported by name."
+  },
+  {
+   "id": "fmod",
+   "name": "FMOD",
+   "vendor": "Firelight Technologies",
+   "license": "proprietary",
+   "platforms": [
+    "win32"
+   ],
+   "strings": [
+    "FMOD"
+   ],
+   "imports": [
+    "FMOD.DLL",
+    "FMODEX.DLL"
+   ],
+   "import_prefix": [
+    "_FSOUND_",
+    "FSOUND_",
+    "_FMUSIC_",
+    "FMUSIC_"
+   ],
+   "files": [
+    "FMOD.DLL",
+    "FMODEX.DLL",
+    "*.FSB"
+   ],
+   "notes": "Sound library (FMOD 3: FSOUND_*/FMUSIC_* functions, FMOD Ex from 2004: C++ classes). Imports name the call sites."
+  },
+  {
+   "id": "bass",
+   "name": "BASS",
+   "vendor": "Un4seen Developments",
+   "license": "proprietary",
+   "platforms": [
+    "win32"
+   ],
+   "imports": [
+    "BASS.DLL"
+   ],
+   "import_prefix": [
+    "BASS_"
+   ],
+   "files": [
+    "BASS.DLL"
+   ],
+   "notes": "Sound library; BASS_* functions imported by name."
+  },
+  {
+   "id": "directx",
+   "name": "DirectX",
+   "vendor": "Microsoft",
+   "license": "proprietary (system component)",
+   "platforms": [
+    "win32"
+   ],
+   "imports": [
+    "DDRAW.DLL",
+    "DSOUND.DLL",
+    "DINPUT.DLL",
+    "DINPUT8.DLL",
+    "D3D8.DLL",
+    "D3D9.DLL",
+    "DPLAYX.DLL",
+    "D3DIM.DLL",
+    "D3DRM.DLL"
+   ],
+   "notes": "COM interfaces: after the Create call every use is an indirect call through a vtable ([reg+offset]); naming them needs the interface layouts (roadmap step 9). DirectDraw (DDRAW) and DirectSound are the usual pair for 2D games."
+  },
+  {
+   "id": "zlib",
+   "name": "zlib",
+   "vendor": "Jean-loup Gailly and Mark Adler",
+   "license": "open source (zlib license)",
+   "platforms": [
+    "dos",
+    "win32"
+   ],
+   "strings": [
+    "Jean-loup Gailly",
+    "incorrect header check",
+    "invalid stored block lengths"
+   ],
+   "version": "(?:deflate|inflate) (\\d+\\.\\d+(?:\\.\\d+)*) Copyright",
+   "imports": [
+    "ZLIB.DLL",
+    "ZLIB1.DLL"
+   ],
+   "signatures": "zlib-*",
+   "prototypes": "zlib.h",
+   "notes": "Deflate compression for archives and save games; the version string is usually linked in. Shipped signatures: 1.0.4, 1.1.3, 1.1.4, 1.2.3 compiled with Open Watcom (DOS); MSVC builds need learned or locally built signatures. Port: link zlib itself."
+  },
+  {
+   "id": "libjpeg",
+   "name": "IJG libjpeg",
+   "vendor": "Independent JPEG Group",
+   "license": "open source (IJG license)",
+   "platforms": [
+    "dos",
+    "win32"
+   ],
+   "strings": [
+    "Bogus marker length",
+    "Unsupported JPEG process",
+    "Independent JPEG Group"
+   ],
+   "version": "\\b(6b|6a|6|5b|5a|5)\\s+\\d+-\\w{3}-\\d{2,4}",
+   "signatures": "jpeg-*",
+   "prototypes": "libjpeg.h",
+   "notes": "JPEG decoding/encoding; the error message table is linked in. Shipped signatures: 6b compiled with Open Watcom. Port: libjpeg(-turbo)."
+  },
+  {
+   "id": "libpng",
+   "name": "libpng",
+   "vendor": "PNG Development Group",
+   "license": "open source (libpng license)",
+   "platforms": [
+    "win32"
+   ],
+   "strings": [
+    "libpng version",
+    "libpng error"
+   ],
+   "version": "libpng version (\\d+\\.\\d+\\.\\d+)",
+   "imports": [
+    "LIBPNG.DLL",
+    "LIBPNG13.DLL",
+    "LIBPNG12.DLL"
+   ],
+   "notes": "PNG images; usually together with zlib."
+  },
+  {
+   "id": "pkware-dcl",
+   "name": "PKWARE Data Compression Library (implode/explode)",
+   "vendor": "PKWARE",
+   "license": "proprietary",
+   "platforms": [
+    "dos",
+    "win32"
+   ],
+   "strings": [
+    "PKWARE Data Compression Library",
+    "PKWARE DCL"
+   ],
+   "notes": "Implode/explode compression of game archives. Port: zlib's contrib/blast decompresses the format."
+  },
+  {
+   "id": "lua",
+   "name": "Lua",
+   "vendor": "PUC-Rio",
+   "license": "open source (MIT)",
+   "platforms": [
+    "win32"
+   ],
+   "strings": [
+    "$Lua: Lua",
+    "Lua 5.0",
+    "Lua 4.0",
+    "lua_pcall"
+   ],
+   "version": "Lua (\\d\\.\\d(?:\\.\\d)?)",
+   "imports": [
+    "LUA.DLL",
+    "LUA50.DLL",
+    "LUA51.DLL"
+   ],
+   "notes": "Scripting language; game logic may live in .lua or precompiled chunks (signature ESC 'Lua')."
+  },
+  {
+   "id": "ogg-vorbis",
+   "name": "Ogg Vorbis",
+   "vendor": "Xiph.Org",
+   "license": "open source (BSD)",
+   "platforms": [
+    "win32"
+   ],
+   "strings": [
+    "Xiph.Org libVorbis",
+    "Xiphophorus libVorbis"
+   ],
+   "imports": [
+    "VORBIS.DLL",
+    "VORBISFILE.DLL",
+    "OGG.DLL"
+   ],
+   "files": [
+    "*.OGG"
+   ],
+   "notes": "Compressed audio from about 2001 on.",
+   "magic": [
+    "OggS"
+   ]
+  },
+  {
+   "id": "allegro",
+   "name": "Allegro",
+   "vendor": "Shawn Hargreaves et al.",
+   "license": "open source (giftware)",
+   "platforms": [
+    "dos",
+    "win32"
+   ],
+   "strings": [
+    "Allegro 3.",
+    "Allegro 4.",
+    "allegro.cfg"
+   ],
+   "version": "Allegro (\\d\\.\\d+(?:\\.\\d+)?)",
+   "imports": [
+    "ALLEG40.DLL",
+    "ALLEG42.DLL",
+    "ALLEG44.DLL"
+   ],
+   "notes": "Game programming library; the DOS version is mostly built with DJGPP (COFF/go32, not LE), the Win32 one with MSVC or MinGW."
+  },
+  {
+   "id": "vesa",
+   "name": "VESA BIOS Extensions / UniVBE",
+   "vendor": "VESA; SciTech Software (UniVBE)",
+   "license": "standard / proprietary driver",
+   "platforms": [
+    "dos"
+   ],
+   "strings": [
+    "VESA",
+    "UniVBE",
+    "SciTech"
+   ],
+   "notes": "SVGA graphics through INT 10h AX=4Fxxh; a linear frame buffer is mapped with DPMI. SciTech MGL games link SciTech's library."
+  },
+  {
+   "id": "rnc",
+   "name": "Rob Northen Compression (ProPack)",
+   "vendor": "Rob Northen Computing",
+   "license": "proprietary",
+   "platforms": [
+    "dos"
+   ],
+   "notes": "Packed data files start with 'RNC' + method byte; 'retrokit rnc' unpacks method 1.",
+   "magic": [
+    "RNC\u0001",
+    "RNC\u0002"
+   ]
+  }
+ ]
+}

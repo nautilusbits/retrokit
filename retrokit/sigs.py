@@ -39,13 +39,20 @@ SHIPPED = paths.SIGS
 
 
 class Sig:
-    __slots__ = ("name", "module", "pattern", "callees", "fixed", "rx", "key", "key_at", "lib")
+    __slots__ = ("name", "module", "pattern", "callees", "fixed", "_rx", "key", "key_at", "lib")
 
     def __init__(self, name, module, pattern, callees, lib=""):
         self.name, self.module, self.pattern, self.callees, self.lib = name, module, pattern, callees, lib
         self.fixed = sum(1 for b in pattern if b is not None)
-        self.rx = re.compile(b"".join(b"." if b is None else re.escape(bytes([b])) for b in pattern), re.S)
+        self._rx = None
         self.key, self.key_at = _key(pattern)
+
+    @property
+    def rx(self):
+        """the pattern as a regular expression, compiled when first needed"""
+        if self._rx is None:
+            self._rx = re.compile(b"".join(_ESC[256 if b is None else b] for b in self.pattern), re.S)
+        return self._rx
 
     def size(self):
         return len(self.pattern)
@@ -53,6 +60,9 @@ class Sig:
     def line(self):
         hexp = "".join(".." if b is None else "%02x" % b for b in self.pattern)
         return "\t".join([self.name, self.module, hexp, ",".join("%x=%s" % c for c in self.callees)])
+
+
+_ESC = [re.escape(bytes([b])) for b in range(256)] + [b"."]
 
 
 def _key(pattern):
@@ -123,7 +133,8 @@ def lib_modules(wlib, lib):
     """{module: [public symbols]} from 'wlib -l'"""
     with tempfile.TemporaryDirectory() as tmp:
         lst = os.path.join(tmp, "lib.lst")
-        subprocess.run([wlib, "-q", "-l=" + lst, lib], check=True, capture_output=True)
+        # -m: C++ names mangled, as 'reference' and the map need them
+        subprocess.run([wlib, "-q", "-m", "-l=" + lst, lib], check=True, capture_output=True)
         mods, cur = {}, None
         for line in open(lst, errors="replace"):
             line = line.rstrip("\r\n")
@@ -173,7 +184,7 @@ def link_reference(watcom, libs, workdir, system="dos4g"):
     exe, mp = os.path.join(workdir, "ref.exe"), os.path.join(workdir, "ref.map")
     lnk = os.path.join(workdir, "ref.lnk")
     with open(lnk, "w") as fh:
-        fh.write("system %s\nname '%s'\noption map='%s', undefsok, quiet\nfile '%s'\n" % (system, exe, mp, obj))
+        fh.write("system %s\nname '%s'\noption map='%s', mangledn, undefsok, quiet\nfile '%s'\n" % (system, exe, mp, obj))
         for lib in libs:
             fh.write("library '%s'\n" % lib)
         for p in publics:
@@ -341,8 +352,27 @@ def code_pointers(path):
     return out
 
 
+_CPP_OPS = {"CT": "ctor", "DT": "dtor", "nw": "operator_new", "dl": "operator_delete",
+            "na": "operator_new_array", "da": "operator_delete_array", "aa": "operator_assign"}
+
+
+def cpp_name(mangled):
+    """identifier for a Watcom C++ symbol: W?$CT:_EXC_PR$N(...)_ -> _EXC_PR_ctor,
+    W?$nwn(ui)pnv -> operator_new, W?flush$:ostream$n()... -> ostream_flush"""
+    m = re.match(r"W\?(\$[A-Za-z]{2}|[A-Za-z_]\w*)((?:\$?:[A-Za-z_]\w*)*)", mangled)
+    if not m:
+        return re.sub(r"\W", "_", mangled)
+    name, scopes = m.group(1), re.findall(r":([A-Za-z_]\w*)", m.group(2))
+    if name.startswith("$"):
+        name = _CPP_OPS.get(name[1:], "operator_" + name[1:])
+    return "_".join(scopes[::-1] + [name])
+
+
 def clean_name(name):
-    """C name of a Watcom symbol: register-convention 'strlen_' -> 'strlen'"""
+    """C name of a Watcom symbol: register-convention 'strlen_' -> 'strlen', C++ names as
+    identifiers (cpp_name)"""
+    if name.startswith("W?"):
+        return cpp_name(name)
     return name[:-1] if name.endswith("_") and len(name) > 1 and not name.endswith("__") else name
 
 
@@ -513,11 +543,31 @@ def match(regions, sigs):
     return found
 
 
+def relevant_files(exe, files):
+    """the signature files worth trying on exe: a file that belongs to a catalogued library
+    (knowledge/libraries.json 'signatures') only when `retrokit libs` finds that library -
+    signatures of absent libraries only add rivals to the fuzzy tier; other files always"""
+    import fnmatch
+    from . import libs
+    cat = [l for l in libs.catalog() if l.get("signatures")]
+    present = {f["id"] for f in libs.detect(exe)}
+    out = []
+    for f in files:
+        base = os.path.basename(f)
+        owners = [l["id"] for l in cat if fnmatch.fnmatch(base, l["signatures"])]
+        if not owners or any(o in present for o in owners):
+            out.append(f)
+    return out
+
+
 def match_file(exe, sig_paths=None, fuzzy=True):
     """match the signature files (sig_files() resolves None to the defaults) in an executable:
     exact matches, then (fuzzy=True) similar code for the rest - see fuzzy.py"""
+    files = sig_files(sig_paths)
+    if not sig_paths:
+        files = relevant_files(exe, files)
     sigs = []
-    for p in sig_files(sig_paths):
+    for p in files:
         sigs += read(p)
     if not sigs:
         return {}, 0

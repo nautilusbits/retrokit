@@ -37,14 +37,17 @@ public class ApplyLibraryPrototypes extends GhidraScript {
 
 		Map<String, FunctionDefinition> protos = new HashMap<>();
 		DataTypeManager dtm = currentProgram.getDataTypeManager();
+		// one parse over all headers, in the given order: later headers use the C library's
+		// types (size_t, FILE) from the first
+		StringBuilder text = new StringBuilder();
 		for (String a : getScriptArgs()) {
-			String text = Files.readString(new File(a).toPath(), StandardCharsets.UTF_8);
-			CParser parser = new CParser(dtm, true, null);
-			parser.parse(text);
-			for (Map.Entry<String, DataType> e : parser.getFunctions().entrySet()) {
-				if (e.getValue() instanceof FunctionDefinition fd) {
-					protos.put(e.getKey(), fd);
-				}
+			text.append(Files.readString(new File(a).toPath(), StandardCharsets.UTF_8)).append('\n');
+		}
+		CParser parser = new CParser(dtm, true, null);
+		parser.parse(text.toString());
+		for (Map.Entry<String, DataType> e : parser.getFunctions().entrySet()) {
+			if (e.getValue() instanceof FunctionDefinition fd) {
+				protos.put(e.getKey(), fd);
 			}
 		}
 

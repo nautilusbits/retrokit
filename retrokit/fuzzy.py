@@ -10,6 +10,9 @@ taken when it is clearly better than any other name and, where both sides call n
 functions, the callees agree. Results are always confidence G.
 """
 import difflib
+import hashlib
+import os
+import pickle
 import re
 import struct
 from collections import Counter, defaultdict
@@ -88,20 +91,58 @@ class Model:
 
     def __init__(self, sigs, md):
         self.items, self.bags = [], []
+        cache = _Cache()
         for s in sigs:
-            code = bytes(0x7f if b is None else b for b in s.pattern)    # masked -> large value -> "N"
-            toks, shapes, _ = normalise(md, code, 0, len(code))
+            toks, shapes = cache.get(s, md)
             if len(toks) < MIN_INSNS // 2:
                 continue
             names = [c for _, c in s.callees]
             self.items.append((s, toks, shapes, names))
             self.bags.append(Counter(shapes))
+        cache.save()
         self.index = defaultdict(list)
         for i, (_, _, shapes, _) in enumerate(self.items):
             for g in set(_grams(shapes)):
                 self.index[g].append(i)
         # grams present in many signatures say little
         self.common = {g for g, l in self.index.items() if len(l) > max(50, len(self.items) // 20)}
+
+
+class _Cache:
+    """normalised signatures on disk (~/.retrokit/cache), keyed by the pattern: normalising
+    thousands of signatures costs seconds on every run otherwise"""
+    VERSION = 1
+
+    def __init__(self):
+        self.path = os.path.join(os.path.expanduser("~"), ".retrokit", "cache", "fuzzy-v%d.pickle" % self.VERSION)
+        self.data, self.dirty = {}, False
+        try:
+            with open(self.path, "rb") as fh:
+                self.data = pickle.load(fh)
+        except (OSError, EOFError, pickle.UnpicklingError, ValueError):
+            self.data = {}
+
+    def get(self, sig, md):
+        code = bytes(0x7f if b is None else b for b in sig.pattern)    # masked -> large value -> "N"
+        key = hashlib.sha1(code + bytes(b is None for b in sig.pattern)).digest()
+        hit = self.data.get(key)
+        if hit is None:
+            toks, shapes, _ = normalise(md, code, 0, len(code))
+            hit = self.data[key] = (toks, shapes)
+            self.dirty = True
+        return hit
+
+    def save(self):
+        if not self.dirty:
+            return
+        try:
+            os.makedirs(os.path.dirname(self.path), exist_ok=True)
+            tmp = self.path + ".tmp"
+            with open(tmp, "wb") as fh:
+                pickle.dump(self.data, fh, protocol=pickle.HIGHEST_PROTOCOL)
+            os.replace(tmp, self.path)
+        except OSError:
+            pass        # read-only home: just slower next time
 
 
 def _grams(shapes):

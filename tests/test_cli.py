@@ -17,7 +17,7 @@ from contextlib import redirect_stdout
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from retrokit import cli, formats, loader, sigs, workspace  # noqa: E402
+from retrokit import cli, formats, libs, loader, sigs, workspace  # noqa: E402
 from retrokit import ghidra as gh  # noqa: E402
 
 BUILD = os.path.join(HERE, "fixtures", "build")
@@ -194,7 +194,7 @@ class TestSigs(unittest.TestCase):
         for seg, off, sym, own in evaluate.parse_map(os.path.join(BUILD, "dos4g_s", "engine.map")):
             if seg in bases:
                 names.setdefault(bases[seg] + off, set()).add(evaluate.norm(sym))
-        ow19 = [os.path.join(sigs.SHIPPED, "watcom-ow19-dos-clib3s.sig.gz")]
+        ow19 = [os.path.join(sigs.SHIPPED, "watcom-ow19-dos-clib3.sig.gz")]
         exact, _ = sigs.match_file(exe, ow19, fuzzy=False)
         both, _ = sigs.match_file(exe, ow19)
         added = {a: v for a, v in both.items() if a not in exact}
@@ -203,6 +203,29 @@ class TestSigs(unittest.TestCase):
         self.assertGreaterEqual(len(right), 15)
         self.assertLessEqual(len(wrong), 1)     # __SetIOMode: renamed __SetIOMode_grow in OW 2
         self.assertTrue(all(v[1] == "G" for v in added.values()))
+
+
+class TestLibs(unittest.TestCase):
+    def test_catalog(self):
+        ids = [l["id"] for l in libs.catalog()]
+        self.assertEqual(len(ids), len(set(ids)))
+        for l in libs.catalog():
+            self.assertTrue(l["name"] and l["notes"], l["id"])
+            for h in filter(None, [l.get("prototypes")]):
+                self.assertTrue(os.path.isfile(os.path.join(libs.paths.KNOWLEDGE, h)), h)
+
+    def test_detect(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            exe = os.path.join(tmp, "GAME.EXE")
+            with open(exe, "wb") as fh:
+                fh.write(b"MZ" + bytes(100) + b"deflate 1.1.4 Copyright 1995-2002 Jean-loup Gailly " + bytes(50))
+            os.makedirs(os.path.join(tmp, "MOVIES"))
+            with open(os.path.join(tmp, "MOVIES", "intro.dat"), "wb") as fh:
+                fh.write(b"SMK2" + bytes(60))
+            found = {f["id"]: f for f in libs.detect(exe)}
+            self.assertEqual(found["zlib"]["version"], "1.1.4")
+            self.assertIn("smacker", found)
+            self.assertTrue(any("signature" in e for e in found["smacker"]["evidence"]))
 
 
 if __name__ == "__main__":

@@ -36,6 +36,7 @@ retrokit = [
     "tools/*.py",
     "sigs/*.sig.gz",
     "knowledge/*.h",
+    "knowledge/*.json",
     "le-loader/*",
     "le-loader/data/**/*",
     "le-loader/src/**/*",

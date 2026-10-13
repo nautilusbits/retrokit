@@ -26,7 +26,11 @@ library signatures are shipped only when built from open-source or public-domain
    - done: fuzzy tier for other compiler versions (`retrokit/fuzzy.py`); open: tune it on more
      Watcom 10.x/11.0 programs, PE (MSVC) libraries
    - open: floating-point prototypes (how Watcom passes doubles depends on the -fp switch)
-   - open: AIL 2.0 (public domain), zlib, ...; detection rules and notes per library
+   - done: library catalog with detection rules, versions and notes (`knowledge/libraries.json`,
+     `retrokit libs`), zlib 1.0.4-1.2.3 and libjpeg 6b signatures + prototypes, Open Watcom
+     math387 and C++ run-time signatures, `scripts/build_sigs.py`
+   - open: prototypes for the APIs of proprietary libraries (Miles, Smacker, Bink, HMI) - with
+     Win32 (step 9), where they are imported by name; AIL 2.0 is 16-bit only; libpng, Lua
 6. Data formats: XMIDI -> MIDI, Miles driver files, VOC, Smacker/Bink via FFmpeg
 7. MCP server over the export (function/xref/string/table queries, name proposals, guarded re-export)
 8. Release 0.1 (DOS)

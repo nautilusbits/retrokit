@@ -135,6 +135,18 @@ retrokit sigs match GAME.EXE          # what would be named, without Ghidra
 retrokit sigs learn GAME_analysis -o ~/.retrokit/sigs/game-lib.sig --names GAME_analysis/notes/names_clib.csv
 ```
 
+The shipped sets are rebuilt with `scripts/build_sigs.py` (Open Watcom 2.0 + 1.9 run-time;
+zlib and libjpeg sources compiled with `-3`/`-5` x `-ox`/`-oneatx` x stack checks on/off in
+both conventions, because the switches a game was built with change the code more than the
+library version does).
+
+`retrokit libs GAME.EXE` lists the libraries of the period the game uses (catalog:
+`retrokit/knowledge/libraries.json`) with the evidence (strings, imported DLLs and functions,
+driver and data files with their signatures), the version where the library embeds one, what
+the kit has for it and notes on formats and porting; `analyze` writes the same into
+`notes/libraries.md`. Proprietary libraries (Miles, HMI, Smacker, Bink, ...) have no shipped
+signatures - Win32 games import their functions by name, for DOS builds use `sigs learn`.
+
 `sigs build` links every public of the libraries into one reference program with `wlink`
 (any OMF library works: sound, graphics or compression libraries of the period), `sigs learn`
 turns functions you identified in one analysed program into signatures for the next program

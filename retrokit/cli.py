@@ -11,6 +11,7 @@
     retrokit entries WS [-o FILE]        code addresses without a function (PE)
     retrokit modules WS --rules FILE     functions -> source files via assert paths (PE)
     retrokit strings GAME.EXE OUT        string inventory without Ghidra (PE)
+    retrokit libs GAME.EXE               period libraries the game uses (evidence, notes, kit support)
     retrokit sigs match GAME.EXE         library functions by signature -> names CSV
     retrokit sigs build --watcom DIR --lib X.lib -o X.sig   signatures from an OMF library
     retrokit sigs learn WS -o X.sig       signatures from the named functions of a workspace
@@ -30,6 +31,7 @@ from . import detect
 from . import doctor
 from . import formats
 from . import ghidra as gh
+from . import libs
 from . import loader
 from . import paths
 from . import pipeline
@@ -78,10 +80,21 @@ def cmd_info(a):
             cc = detect.watcom_convention(a.exe)
         except RuntimeError as e:
             info["notes"].append(str(e))
+    found = libs.detect(a.exe)
     if a.json:
-        print(json.dumps(dict(info, convention=cc), indent=1))
+        print(json.dumps(dict(info, convention=cc, libraries=found), indent=1))
     else:
         print(_describe(info, cc))
+        if found:
+            print("  libraries  " + ", ".join(f["name"] + (" " + f["version"] if f["version"] else "") for f in found)
+                  + "   (retrokit libs for details)")
+    return 0
+
+
+def cmd_libs(a):
+    exe = _workspace(a.exe)["exe"] if wsp.is_workspace(a.exe) else a.exe
+    found = libs.detect(exe, a.dir)
+    print(json.dumps(found, indent=1) if a.json else libs.format_report(found))
     return 0
 
 
@@ -194,6 +207,8 @@ def cmd_sigs(a):
         raise SystemExit("sigs match needs an executable or workspace")
     exe = _workspace(a.exe)["exe"] if wsp.is_workspace(a.exe) else a.exe
     files = sigs.sig_files(a.sigs)
+    if not a.sigs:
+        files = sigs.relevant_files(exe, files)
     found, n = sigs.match_file(exe, files, fuzzy=not a.exact)
     out = a.output or (os.path.join(wsp.sub(_workspace(a.exe), "notes"), "sigs", "names_sigs.csv")
                        if wsp.is_workspace(a.exe) else None)
@@ -277,6 +292,11 @@ def build_parser():
     s.add_argument("workspace")
     s.add_argument("--rules", help="TSV regex<TAB>module")
     s.add_argument("-o", "--output", help="output dir (default <workspace>/notes)")
+
+    s = add("libs", cmd_libs, "period libraries a game uses: evidence, version, notes, what the kit supports")
+    s.add_argument("exe", help="executable or workspace")
+    s.add_argument("--dir", help="game directory to look for data files in (default: the executable's)")
+    s.add_argument("--json", action="store_true")
 
     s = add("sigs", cmd_sigs, "library signatures: match them in an EXE, build them from a library, "
                               "or learn them from the named functions of a workspace")

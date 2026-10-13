@@ -13,6 +13,7 @@ import subprocess
 import sys
 
 from . import ghidra as gh
+from . import libs
 from . import paths
 from . import sigs
 from . import workspace as wsp
@@ -54,7 +55,9 @@ def _library_args(lib_names):
     if not lib_names:
         return []
     args = ["-preScript", "ApplyNames.java", os.path.abspath(lib_names)]
-    headers = sorted(glob.glob(os.path.join(paths.KNOWLEDGE, "*.h")))
+    # the C library header first: the others use its types
+    headers = sorted(glob.glob(os.path.join(paths.KNOWLEDGE, "*.h")),
+                     key=lambda h: (os.path.basename(h) != "watcom_clib.h", h))
     if headers:
         args += ["-preScript", "ApplyLibraryPrototypes.java"] + headers
     return args
@@ -111,6 +114,11 @@ def run(ws, ghidra, skip_import=False, names=None, entries=None, out=print):
     out("EXE:    %s  [%s%s]" % (ws["exe"], ws["format"],
                                 ", loader %s, cspec %s" % (ws["loader"], ws["cspec"]) if ws["pipeline"] == "le" else ""))
     out("Out:    %s" % ws["dir"])
+    found = libs.detect(ws["exe"])
+    libs.write_notes(os.path.join(d["notes"], "libraries.md"), ws["exe"], found)
+    if found:
+        out("Libs:   %s  (notes/libraries.md)" % ", ".join(
+            f["name"] + (" " + f["version"] if f["version"] else "") for f in found))
     if ws["pipeline"] == "le":
         n = _run_le(ws, ghidra, d, skip_import, names, entries, out)
     elif ws["pipeline"] == "pe":

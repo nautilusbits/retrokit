@@ -25,3 +25,4 @@ __pycache__/
 tests/fixtures/build/
 /build/
 /dist/
+*.err
