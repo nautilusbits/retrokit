@@ -1,0 +1,48 @@
+# Gitea is the primary repository; this pushes main and tags on to GitHub.
+#
+# Plain push, never --force: if GitHub has commits Gitea does not (a pull request merged on
+# GitHub), the job fails instead of overwriting them - pull them into Gitea and push again
+# (docs/MAINTAINING.md). Branch protection on GitHub (no force pushes) backs this up.
+#
+# Inactive until the repository (Settings -> Actions) has
+#   variable  GITHUB_MIRROR_REPO   owner/name, e.g. someone/retrokit
+#   secret    GITHUB_MIRROR_TOKEN  fine-grained GitHub token for that repository, Contents: read and write
+#                                  (+ Workflows: read and write, to push changes under .github/workflows)
+# Gitea runs only .gitea/workflows when this directory exists, so the GitHub test workflow
+# (.github/workflows) does not run here.
+name: github-mirror
+on:
+  push:
+    branches: [main]
+    tags: ['*']
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: check configuration
+        id: cfg
+        env:
+          REPO: ${{ vars.GITHUB_MIRROR_REPO }}
+          TOKEN: ${{ secrets.GITHUB_MIRROR_TOKEN }}
+        run: |
+          if [ -z "$REPO" ] || [ -z "$TOKEN" ]; then
+            echo "GitHub mirror not configured (GITHUB_MIRROR_REPO / GITHUB_MIRROR_TOKEN) - nothing to do"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.enabled == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: push to GitHub (no force)
+        if: steps.cfg.outputs.enabled == 'true'
+        env:
+          REPO: ${{ vars.GITHUB_MIRROR_REPO }}
+          TOKEN: ${{ secrets.GITHUB_MIRROR_TOKEN }}
+          REF: ${{ github.ref }}
+        run: |
+          git push "https://x-access-token:${TOKEN}@github.com/${REPO}.git" "${REF}:${REF}"

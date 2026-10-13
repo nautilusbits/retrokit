@@ -130,6 +130,15 @@ loader against an independent Python model of each image, runs `retrokit analyze
 scores the result against the linker map (function addresses, parameter counts, call arguments,
 string literals, truncated functions, decompiler noise). See `tests/README.md`.
 
+## Contributing
+
+Issues and pull requests are welcome on GitHub. The primary repository is maintained
+elsewhere and mirrored to GitHub, so pull requests are merged there and show up on GitHub
+as merged once the mirror has synchronised (`docs/MAINTAINING.md`). Please do not attach
+game files or decompiled game code; describe the binary instead (format, extender,
+compiler, what goes wrong) and, where you can, reproduce it with a small program built
+with Open Watcom like the ones in `tests/`.
+
 ## License
 
 Apache License 2.0 (`LICENSE`). Earlier versions of the kit used
