@@ -1,9 +1,15 @@
 # Maintaining retro-kit
 
-The primary repository is a self-hosted Gitea; GitHub is a public copy that receives every
-push to `main` and every tag from Gitea (`.gitea/workflows/github-mirror.yml`). Pushes are
-never forced, so nothing on GitHub is overwritten; a push that GitHub rejects means the two
-have diverged and has to be resolved by hand.
+The primary repository is a self-hosted Gitea; GitHub is a public copy. Gitea's **push
+mirror** (repository Settings -> Repository -> Mirror Settings, "sync when commits are
+pushed") sends every branch and tag to GitHub with a fine-grained token (Contents and
+Workflows: read and write, this repository only). The mirror pushes with force, so `main`
+on GitHub is protected by a ruleset (no force pushes, no deletion): if GitHub ever has
+commits Gitea does not, the sync fails visibly in the mirror settings instead of
+overwriting them - bring them home as described below. Renew the token before it expires.
+
+Alternative without a push mirror: `.gitea/workflows/github-mirror.yml` pushes `main` and tags
+without force once an Actions runner and `GITHUB_MIRROR_REPO` / `GITHUB_MIRROR_TOKEN` exist.
 
 ## Publishing on GitHub (once)
 
@@ -14,13 +20,11 @@ have diverged and has to be resolved by hand.
 3. GitHub -> Settings -> Branches: protect `main`, block force pushes and deletion.
 4. Create a fine-grained GitHub token for that repository only: Contents read/write,
    Workflows read/write.
-5. Gitea -> repository -> Settings -> Actions: variable `GITHUB_MIRROR_REPO` = `owner/name`,
-   secret `GITHUB_MIRROR_TOKEN` = the token. An Actions runner (act_runner) must be
-   registered for the repository, the user or the instance.
-6. Push anything to `main` (or re-run the last workflow): the job pushes `main`; push the
-   tags once with `git push origin --tags`.
-
-Without a runner, push to both directly instead: `git push origin main && git push github main`.
+5. Gitea -> repository -> Settings -> Repository -> Mirror Settings: push mirror to the GitHub
+   URL, username = GitHub user, password = the token, sync when commits are pushed;
+   "Synchronize Now" to check. (Or the Actions workflow above.)
+6. Make the GitHub repository public, add the ruleset for `main`, enable private
+   vulnerability reporting (Settings -> Security).
 
 ## Pull requests from GitHub
 
