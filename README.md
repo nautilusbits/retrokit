@@ -61,6 +61,9 @@ collisions get `_<addr>`) and re-exports.
 
 What the pipeline does:
 
+- **Library functions** (both formats): the Watcom C run-time is found by signature (shipped,
+  built from Open Watcom; `retrokit sigs build` makes them from libraries you own, `sigs learn`
+  from functions you identified), named, and typed from `retrokit/knowledge/*.h`.
 - **LE/LX**: import with the LE loader and the Watcom cspec, functions at the targets of fixups
   into code (Watcom games call much of their logic through pointer tables), `switch` jump tables
   kept inside their functions, wrong "no return" flags undone, short strings defined and string
@@ -70,7 +73,8 @@ What the pipeline does:
   targets and after padding until no new ones turn up, the same string / parameter / prototype
   passes, export.
 
-Other commands: `entries` (PE: code addresses without a function), `modules --rules FILE`
+Other commands: `sigs match|build|learn` (library signatures, see `docs/WORKFLOW.md`),
+`entries` (PE: code addresses without a function), `modules --rules FILE`
 (PE: functions → original source files via assert paths), `strings EXE OUT` (PE string inventory
 without Ghidra), `match` (transfer names to a related EXE: sequel, add-on, other version),
 `le EXE info|dump|rec|s16|s32` (read tables from an LE at Ghidra addresses), `rnc` (RNC ProPack),
@@ -86,6 +90,8 @@ retrokit/               Python package (CLI: retrokit/cli.py)
   ghidra_scripts/       headless Ghidra scripts used by the pipelines
   tools/                standalone Python tools behind the CLI commands
   le-loader/            LE/LX loader for Ghidra (Java) + Watcom compiler specs (data/languages/)
+  sigs/                 library signatures (Open Watcom C run-time)
+  knowledge/            library prototypes as C headers
 tests/                  synthetic test programs, scoring against the linker map, baseline
 docs/                   WORKFLOW, AGENT_PROMPTS, ROADMAP
 ```
@@ -97,6 +103,7 @@ docs/                   WORKFLOW, AGENT_PROMPTS, ROADMAP
 | `FixTruncatedCallers.java` | clears a wrong "no return" that truncates callers |
 | `FixAnalysis.java` | manual fixes: `noreturn:ADDR`, `func:ADDR` |
 | `MarkStringsConstant.java` | defines short strings, marks strings in writable data `constant` (literals in the decompilation) |
+| `ApplyLibraryPrototypes.java` | documented prototypes for named library functions (`knowledge/*.h`), tag `LIBRARY` |
 | `ApplyStackConvention.java` | parameter counts / `__cdecl` / varargs from `ADD ESP,n` at call sites, `__stdcall` from `RET n` |
 | `RecoverPrototypes.java` | prototypes from the decompiler, bottom-up by call-graph level |
 | `ApplyNames.java` | names from `names_*.csv` |

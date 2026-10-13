@@ -14,10 +14,11 @@ import sys
 
 from . import ghidra as gh
 from . import paths
+from . import sigs
 from . import workspace as wsp
 
 LE_SUMMARY = (r"Created|Switch tables|Exporting|Export done|Wrote|ApplyStackConvention:|MarkStringsConstant:|"
-              r"ApplyNames:|Recovering|iteration|Entries:")
+              r"ApplyNames:|ApplyLibraryPrototypes:|library signatures|Recovering|iteration|Entries:")
 PE_SUMMARY = r"Exporting|Export done|DumpImports|ApplyNames:|Entries:"
 
 
@@ -33,16 +34,53 @@ def _clear_locks(project):
         os.remove(f)
 
 
-def _names_args(names):
-    if not names:
-        return []
-    return ["-postScript", "ApplyNames.java", os.path.abspath(names)]
+def _names_args(*names):
+    """ApplyNames over the given CSVs/directories; earlier ones win on equal confidence"""
+    names = [os.path.abspath(n) for n in names if n]
+    return ["-postScript", "ApplyNames.java"] + names if names else []
 
 
-def _entries_args(entries):
-    if not entries:
+def _entries_args(*entries):
+    out = []
+    for e in entries:
+        if e:
+            out += ["-preScript", "CreateFunctionsAtEntries.java", "@" + os.path.abspath(e)]
+    return out
+
+
+def _library_args(lib_names):
+    """preScripts: library names from signatures, then their documented prototypes - before the
+    parameter-count and prototype passes, which leave the typed (LIBRARY) functions alone"""
+    if not lib_names:
         return []
-    return ["-preScript", "CreateFunctionsAtEntries.java", "@" + os.path.abspath(entries)]
+    args = ["-preScript", "ApplyNames.java", os.path.abspath(lib_names)]
+    headers = sorted(glob.glob(os.path.join(paths.KNOWLEDGE, "*.h")))
+    if headers:
+        args += ["-preScript", "ApplyLibraryPrototypes.java"] + headers
+    return args
+
+
+def library_names(ws, d, out):
+    """library functions found by signature -> (names CSV, entries file) under notes/sigs/, or
+    (None, None). Kept out of notes/ itself so that 'retrokit names' applies the user's names first."""
+    if not ws.get("sigs", True):
+        return None, None
+    found, n = sigs.match_file(ws["exe"], ws.get("sig_files"))
+    if not found:
+        out("library signatures: none found (%d signatures)" % n)
+        return None, None
+    sd = os.path.join(d["notes"], "sigs")
+    os.makedirs(sd, exist_ok=True)
+    names, entries = os.path.join(sd, "names_sigs.csv"), os.path.join(sd, "entries_sigs.txt")
+    sigs.write_names(names, found)
+    with open(entries, "w", newline="\n") as fh:
+        fh.write("# library functions found by signature\n")
+        for a in sorted(found):
+            fh.write("%08x\n" % a)
+    out("library signatures: %d functions named (%d V, %d G) -> %s" % (
+        len(found), sum(1 for v in found.values() if v[1] == "V"), sum(1 for v in found.values() if v[1] == "G"),
+        names))
+    return names, entries
 
 
 def _summary(log, pattern, out):
@@ -103,11 +141,12 @@ def _run_le(ws, ghidra, d, skip_import, names, entries, out):
         _headless(ghidra, d, ["-import", ws["exe"], "-loader", ws["loader"], "-processor", "x86:LE:32:default",
                               "-cspec", ws["cspec"], "-overwrite", "-postScript", "CreateFunctionsFromFixups.java"],
                   "import")
+    lib_names, lib_entries = library_names(ws, d, out)
     out("== fix-up passes, parameter counts%s, export" % (", prototypes" if ws.get("prototypes", True) else ""))
-    args = ["-process", name] + _entries_args(entries) + [
+    args = ["-process", name] + _entries_args(entries, lib_entries) + [
         "-preScript", "FixTruncatedCallers.java",
         "-preScript", "CreateFunctionsFromFixups.java",
-        "-preScript", "MarkStringsConstant.java"]
+        "-preScript", "MarkStringsConstant.java"] + _library_args(lib_names)
     if ws.get("prototypes", True):
         # parameter counts from "ADD ESP,n" at call sites, then prototypes callees-first
         args += ["-preScript", "ApplyStackConvention.java", "-postScript", "RecoverPrototypes.java"]
@@ -122,7 +161,9 @@ def _run_le(ws, ghidra, d, skip_import, names, entries, out):
 def _export_pe(ws, ghidra, d, names, phase, out):
     """full export: strings, parameter counts and prototypes as for LE, then the dumps"""
     name = os.path.basename(ws["exe"])
-    args = ["-process", name, "-noanalysis", "-preScript", "MarkStringsConstant.java"]
+    lib_names, lib_entries = library_names(ws, d, out)
+    args = ["-process", name] + _entries_args(lib_entries) + ["-noanalysis", "-preScript", "MarkStringsConstant.java"] + \
+        _library_args(lib_names)
     if ws.get("prototypes", True):
         args += ["-preScript", "ApplyStackConvention.java", "-postScript", "RecoverPrototypes.java"]
     log = _headless(ghidra, d, args + _names_args(names) + [

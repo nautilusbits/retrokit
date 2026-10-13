@@ -63,6 +63,9 @@ public class ApplyStackConvention extends GhidraScript {
 			if (monitor.isCancelled()) {
 				break;
 			}
+			if (f.getTags().stream().anyMatch(t -> t.getName().equals("LIBRARY"))) {
+				continue;   // documented prototype (ApplyLibraryPrototypes)
+			}
 			if (stackModel && fm.getCallingConvention("__stdcall") != null) {
 				long popped = calleePop(f);
 				if (popped > 0) {

@@ -81,7 +81,14 @@ comment in the cspec).
    (fewer than 5 characters, e.g. `"seed"`, `"rb"`) wherever code takes their address, then
    marks strings in the writable data object as `constant` so the decompiler prints
    `"text"` literals (otherwise `&DAT_xxx`).
-5. Parameter counts and prototypes (skip with `-NoPrototypes`):
+5. Library functions (skip with `--no-sigs`): before the export pass `retrokit` looks for the
+   shipped Watcom C library signatures (and your own, see below) in the code without Ghidra,
+   creates functions where they start, names them (`notes/sigs/names_sigs.csv`, applied before
+   your own names so yours win) and `ApplyLibraryPrototypes.java` gives every function declared
+   in `retrokit/knowledge/*.h` its documented prototype (`size_t strlen(char *s)`,
+   `FILE *fopen(...)`, variadic `printf` on the stack). These functions are tagged `LIBRARY`
+   and the next two passes leave them alone; their callers then see real types.
+6. Parameter counts and prototypes (skip with `--no-prototypes`):
    - `ApplyStackConvention.java`: parameter counts from `ADD ESP,n` right after calls
      (only counted when n/4 argument pushes precede the call – otherwise the ADD releases
      the caller's frame). Stack convention: every such function gets n/4 parameters, and
@@ -90,7 +97,7 @@ comment in the cspec).
      If n differs between calls the function is varargs (sprintf…): the fixed parameters
      end at the argument that is a format string, `...` follows, the signature is locked.
    - `RecoverPrototypes.java`: prototypes from the decompiler **bottom-up** by
-     call-graph level (in parallel within a level); functions with counts from step 5a
+     call-graph level (in parallel within a level); functions with counts from step 6a
      only get their return type. A `void` or untyped 8-byte return is never committed
      (both turn call sites into `extraout_*`). Trailing `unaff_*` parameters are dropped
      unless at least half of the callers set the register right before the `CALL`
@@ -98,7 +105,29 @@ comment in the cspec).
      register without saving it in its prologue: a Watcom callee saves every register it
      modifies except EAX and its argument registers. This also works for functions only
      called through pointer tables. Kept register parameters are renamed `param_N`.
-6. `ExportDecompiled.java` + `DumpFixups.java`.
+7. `ExportDecompiled.java` + `DumpFixups.java`.
+
+**Library signatures.** A signature is the code of one library function exactly as the linker
+placed it, with fixup fields and the rel32 operands of calls/jumps leaving the function
+masked; calls to other library functions are kept as callee names and confirm short or
+ambiguous matches (functions with identical code such as `atoi`/`atol` get the documented name
+and a `G` comment). The shipped sets (`retrokit/sigs/`) come from Open Watcom 2.0 and 1.9
+(`clib3r`/`clib3s` + `math3r`/`math3s`, DOS) and name ~90 % of the run-time of a program built
+with those compilers, with no wrong names on the test programs. Code compiled with the
+original Watcom 10.x/11.0 run-time differs byte for byte from Open Watcom, so few functions
+match there. If you own such a compiler, build signatures from its libraries – they stay on
+your machine and are picked up automatically from `~/.retrokit/sigs/`:
+
+```
+retrokit sigs build --watcom C:\WATCOM --lib C:\WATCOM\lib386\dos\clib3r.lib --lib C:\WATCOM\lib386\math3r.lib -o ~/.retrokit/sigs/watcom106-clib3r.sig
+retrokit sigs match GAME.EXE          # what would be named, without Ghidra
+retrokit sigs learn GAME_analysis -o ~/.retrokit/sigs/game-lib.sig --names GAME_analysis/notes/names_clib.csv
+```
+
+`sigs build` links every public of the libraries into one reference program with `wlink`
+(any OMF library works: sound, graphics or compression libraries of the period), `sigs learn`
+turns functions you identified in one analysed program into signatures for the next program
+built with the same tools.
 
 **Pitfall – block permissions.** If the loader creates every object as `r--`,
 the decompiler treats globals in the data object as constants, substitutes their

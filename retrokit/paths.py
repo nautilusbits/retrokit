@@ -7,6 +7,8 @@ GHIDRA_SCRIPTS = os.path.join(PACKAGE, "ghidra_scripts")
 TOOLS = os.path.join(PACKAGE, "tools")
 LE_LOADER = os.path.join(PACKAGE, "le-loader")              # our LE/LX loader extension
 CSPECS = os.path.join(LE_LOADER, "data", "languages")       # Watcom compiler specs
+KNOWLEDGE = os.path.join(PACKAGE, "knowledge")             # library prototypes (C headers)
+SIGS = os.path.join(PACKAGE, "sigs")                       # shipped library signatures
 
 
 def tool(name):

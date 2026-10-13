@@ -24,7 +24,7 @@ import evaluate  # noqa: E402
 
 BUILD = os.path.join(HERE, "fixtures", "build")
 BASELINE = os.path.join(HERE, "baseline.json")
-HIGHER = ["own_found", "lib_found", "own_params_ok", "calls_args_ok", "strings_found"]
+HIGHER = ["own_found", "lib_found", "lib_named", "own_params_ok", "calls_args_ok", "strings_found"]
 LOWER = ["own_truncated", "extraout", "unaff", "undefined8", "in_reg", "warnings",
          "extraout_own", "unaff_own", "undefined8_own", "in_reg_own", "warnings_own"]
 TOTALS = ["own_total", "lib_total", "calls_total", "strings_total"]
@@ -60,6 +60,8 @@ def compare(m, base):
         if m[k] != base.get(k):
             reg.append("%s changed %s -> %s (fixture changed? run --update-baseline)" % (k, base.get(k), m[k]))
     for k in HIGHER:
+        if k not in base:
+            continue
         if m[k] < base[k]:
             reg.append("%s %d -> %d" % (k, base[k], m[k]))
         elif m[k] > base[k]:

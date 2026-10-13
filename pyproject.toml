@@ -34,6 +34,8 @@ version = { attr = "retrokit.__version__" }
 retrokit = [
     "ghidra_scripts/*.java",
     "tools/*.py",
+    "sigs/*.sig.gz",
+    "knowledge/*.h",
     "le-loader/*",
     "le-loader/data/**/*",
     "le-loader/src/**/*",

@@ -11,6 +11,9 @@
     retrokit entries WS [-o FILE]        code addresses without a function (PE)
     retrokit modules WS --rules FILE     functions -> source files via assert paths (PE)
     retrokit strings GAME.EXE OUT        string inventory without Ghidra (PE)
+    retrokit sigs match GAME.EXE         library functions by signature -> names CSV
+    retrokit sigs build --watcom DIR --lib X.lib -o X.sig   signatures from an OMF library
+    retrokit sigs learn WS -o X.sig       signatures from the named functions of a workspace
     retrokit match ...                   transfer names to a related EXE (tools/match_names.py)
     retrokit le GAME.EXE info|dump|rec|s16|s32 ...   read LE tables at Ghidra addresses
     retrokit rnc IN [OUT]                RNC ProPack decompressor
@@ -30,6 +33,7 @@ from . import ghidra as gh
 from . import loader
 from . import paths
 from . import pipeline
+from . import sigs
 from . import workspace as wsp
 
 
@@ -89,7 +93,9 @@ def _new_workspace(a):
     out = os.path.abspath(a.out or wsp.default_dir(exe))
     ws = {"dir": out, "exe": exe, "format": info["format"], "pipeline": info["pipeline"],
           "cname": a.cname or os.path.splitext(os.path.basename(exe))[0].lower() + "_decompiled.c",
-          "prototypes": not a.no_prototypes}
+          "prototypes": not a.no_prototypes, "sigs": not a.no_sigs}
+    if a.sigs:
+        ws["sig_files"] = [os.path.abspath(x) for x in a.sigs]
     if info["pipeline"] == "le":
         ws["loader"] = info["loader"] if a.loader == "auto" else a.loader
         if a.cspec == "auto":
@@ -110,6 +116,8 @@ def cmd_analyze(a):
         ws = wsp.load(a.exe)
         if a.no_prototypes:
             ws["prototypes"] = False
+        if a.no_sigs:
+            ws["sigs"] = False
     else:
         ws = _new_workspace(a)
     ghidra = gh.find(a.ghidra or ws.get("ghidra"), near=os.path.dirname(ws["exe"]))
@@ -160,6 +168,48 @@ def cmd_modules(a):
     return _tool("module_map.py", args + (["--rules", a.rules] if a.rules else []))
 
 
+def cmd_sigs(a):
+    if a.action == "build":
+        if not a.watcom or not a.lib or not a.output:
+            raise SystemExit("sigs build needs --watcom DIR, --lib LIB (repeatable) and -o FILE")
+        n = sigs.build(a.watcom, a.lib, a.output, a.label, a.system)
+        print("%d signatures -> %s" % (n, a.output))
+        return 0
+    if a.action == "learn":
+        if not a.exe or not wsp.is_workspace(a.exe) or not a.output:
+            raise SystemExit("sigs learn needs an analysed workspace and -o FILE")
+        ws = _workspace(a.exe)
+        keep = None
+        if a.names:
+            import csv
+            with open(a.names, encoding="utf-8") as fh:
+                keep = {int(r["addr"].split(":")[-1], 16) for r in csv.DictReader(fh)}
+        found = sigs.learn(ws["exe"], os.path.join(wsp.sub(ws, "decomp"), "functions.csv"), keep,
+                           a.label or os.path.basename(ws["exe"]))
+        sigs.write(a.output, found, ["label: %s" % (a.label or "learned from " + os.path.basename(ws["exe"])),
+                                     "built by retrokit sigs learn"])
+        print("%d signatures -> %s" % (len(found), a.output))
+        return 0
+    if not a.exe:
+        raise SystemExit("sigs match needs an executable or workspace")
+    exe = _workspace(a.exe)["exe"] if wsp.is_workspace(a.exe) else a.exe
+    files = sigs.sig_files(a.sigs)
+    found, n = sigs.match_file(exe, files)
+    out = a.output or (os.path.join(wsp.sub(_workspace(a.exe), "notes"), "sigs", "names_sigs.csv")
+                       if wsp.is_workspace(a.exe) else None)
+    print("%d signatures from %d files, %d functions found (%d V, %d G)" % (
+        n, len(files), len(found), sum(1 for v in found.values() if v[1] == "V"),
+        sum(1 for v in found.values() if v[1] == "G")))
+    if out:
+        os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+        sigs.write_names(out, found)
+        print("-> %s" % out)
+    else:
+        for addr in sorted(found):
+            print("%08x %-24s %s %s" % ((addr,) + found[addr]))
+    return 0
+
+
 def cmd_install_loader(a):
     ghidra = gh.find(a.ghidra)
     loader.install(ghidra, build_only=a.build_only)
@@ -192,6 +242,9 @@ def build_parser():
     s.add_argument("--cspec", default="auto", choices=["auto", "watcom", "watcomreg"], help="LE: calling convention")
     s.add_argument("--loader", default="auto", help="Ghidra loader class (default: LinearExecutableLoader for LE/LX)")
     s.add_argument("--no-prototypes", action="store_true", help="skip parameter counts / prototype recovery")
+    s.add_argument("--no-sigs", action="store_true", help="do not name library functions by signature")
+    s.add_argument("--sigs", action="append", metavar="FILE|DIR",
+                   help="signature files to use instead of the shipped ones + ~/.retrokit/sigs (repeatable)")
     s.add_argument("--entry-passes", type=int, default=3, help="PE: find_entries rounds after the first export")
     s.add_argument("--names", help="names_*.csv file or directory to apply before export")
     s.add_argument("--entries", help="file with hex addresses to create functions at")
@@ -224,6 +277,18 @@ def build_parser():
     s.add_argument("--rules", help="TSV regex<TAB>module")
     s.add_argument("-o", "--output", help="output dir (default <workspace>/notes)")
 
+    s = add("sigs", cmd_sigs, "library signatures: match them in an EXE, build them from a library, "
+                              "or learn them from the named functions of a workspace")
+    s.add_argument("action", choices=["match", "build", "learn"])
+    s.add_argument("exe", nargs="?", help="match: executable or workspace; learn: workspace")
+    s.add_argument("--names", help="learn: only the addresses of this names CSV (default: every named function)")
+    s.add_argument("--sigs", action="append", help="match: .sig file or directory (default: shipped + ~/.retrokit/sigs)")
+    s.add_argument("-o", "--output", help="match: names CSV (default <workspace>/notes/sigs/names_sigs.csv); build, learn: .sig file")
+    s.add_argument("--watcom", help="build: Watcom install dir (wlink, wlib)")
+    s.add_argument("--lib", action="append", help="build: OMF library (repeatable)")
+    s.add_argument("--label", help="build: description stored in the file")
+    s.add_argument("--system", default="dos4g", help="build: wlink system for the reference link")
+
     for name, tool, help_ in [("strings", "strings_scan.py", "PE string inventory without Ghidra: EXE OUT_DIR"),
                               ("match", "match_names.py", "transfer names to a related EXE (see --help)"),
                               ("rnc", "rnc.py", "RNC ProPack decompressor: IN [OUT]"),
@@ -246,7 +311,7 @@ def main(argv=None):
         return 2
     try:
         return a.fn(a) or 0
-    except (gh.GhidraError, formats.FormatError, RuntimeError) as e:
+    except (gh.GhidraError, formats.FormatError, RuntimeError, FileNotFoundError) as e:
         print("error: %s" % e, file=sys.stderr)
         return 1
     except KeyboardInterrupt:

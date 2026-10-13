@@ -19,8 +19,14 @@ library signatures are shipped only when built from open-source or public-domain
      for PE)
 5. Library knowledge base: detection rules (strings, imports, file signatures), prototypes,
    format notes and porting hints per library; signature generator
-   - shipped signatures: Watcom clib (Open Watcom sources), AIL 2.0 (public domain), zlib, ...
-   - locally generated signatures from SDKs the user owns; signatures learned from analysed binaries
+   - done: signature format + matcher (`retrokit sigs`, applied by `analyze`), generator for OMF
+     libraries via wlink (`sigs build`), signatures learned from a named workspace (`sigs learn`),
+     shipped Open Watcom 2.0 / 1.9 DOS clib + math signatures, C library prototypes
+     (`knowledge/watcom_clib.h`, `ApplyLibraryPrototypes`)
+   - open: Watcom 10.x/11.0 run-time code differs from Open Watcom byte for byte - a fuzzy tier
+     (instruction similarity, as `match` does between programs) for old binaries
+   - open: floating-point prototypes (how Watcom passes doubles depends on the -fp switch)
+   - open: AIL 2.0 (public domain), zlib, ...; detection rules and notes per library
 6. Data formats: XMIDI -> MIDI, Miles driver files, VOC, Smacker/Bink via FFmpeg
 7. MCP server over the export (function/xref/string/table queries, name proposals, guarded re-export)
 8. Release 0.1 (DOS)

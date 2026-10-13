@@ -17,7 +17,7 @@ from contextlib import redirect_stdout
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from retrokit import cli, formats, loader, workspace  # noqa: E402
+from retrokit import cli, formats, loader, sigs, workspace  # noqa: E402
 from retrokit import ghidra as gh  # noqa: E402
 
 BUILD = os.path.join(HERE, "fixtures", "build")
@@ -133,6 +133,52 @@ class TestIdentifyFixtures(unittest.TestCase):
         le = formats.LinearExecutable(exe)
         self.assertEqual(le.objects[le.code_object()][1], 0x10000)
         self.assertEqual(len(le.read(0x10000, 16)), 16)
+
+
+class TestSigs(unittest.TestCase):
+    def test_roundtrip(self):
+        s = sigs.Sig("f_", "m.c", [0x53, 0x51, 0x52, 0x56, None, None, None, None, 0xc3], [(3, "g_")])
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ("x.sig", "x.sig.gz"):
+                p = os.path.join(tmp, name)
+                sigs.write(p, [s], ["test"])
+                (r,) = sigs.read(p)
+                self.assertEqual((r.name, r.module, r.pattern, r.callees, r.lib),
+                                 (s.name, s.module, s.pattern, s.callees, "x"))
+
+    def test_match_synthetic(self):
+        body = bytes([0x55, 0x89, 0xe5, 0x53, 0x8b, 0x45, 0x08, 0x40, 0x5b, 0x5d, 0xc3])
+        code = b"\x90" * 7 + body + b"\xcc" * 9
+        sig = sigs.Sig("inc_it_", "m.c", list(body), [])
+        self.assertEqual(sigs.match([(0x1000, code)], [sig]), {})   # short and nothing calls it
+        call = b"\xe8" + struct.pack("<i", 0x1007 - (0x1000 + len(code) + 5))
+        found = sigs.match([(0x1000, code + call)], [sig])
+        self.assertEqual(list(found), [0x1007])
+        self.assertEqual(found[0x1007][:2], ("inc_it", "G"))
+        long_body = body[:-1] + bytes(range(0x50, 0x58)) + b"\xc3"   # 19 fixed bytes: stands on its own
+        found = sigs.match([(0x1000, code + long_body)], [sigs.Sig("f", "m", list(long_body), [])])
+        self.assertEqual(found, {0x1000 + len(code): ("f", "V", "sig /m 19B")})
+
+    def test_shipped_on_fixtures(self):
+        """shipped Watcom signatures name the library functions of the test programs, all correctly"""
+        sys.path.insert(0, HERE)
+        import evaluate
+        for name, minimum in (("dos4g_r", 100), ("dos4g_s", 100)):
+            exe = variant(name)
+            if not exe:
+                continue
+            le = formats.LinearExecutable(exe)
+            bases = le.bases()
+            names = {}
+            for seg, off, sym, own in evaluate.parse_map(os.path.join(BUILD, name, "engine.map")):
+                if seg in bases:
+                    names.setdefault(bases[seg] + off, set()).add(evaluate.norm(sym))
+            found, _ = sigs.match_file(exe)
+            right = [a for a, v in found.items() if evaluate.norm(v[0]) in names.get(a, ())]
+            # the rest are static functions the map does not list (OW 1.9 exports them)
+            unlisted = [a for a in found if a not in names]
+            self.assertGreaterEqual(len(right), minimum, name)
+            self.assertEqual(len(right) + len(unlisted), len(found), name)
 
 
 if __name__ == "__main__":

@@ -62,7 +62,9 @@ public class RecoverPrototypes extends GhidraScript {
 		List<Function> funcs = new ArrayList<>();
 		for (Function f : currentProgram.getFunctionManager().getFunctions(true)) {
 			// varargs signatures come from ApplyStackConvention (call-site cleanup sizes)
-			if (!f.isThunk() && !f.isExternal() && !f.hasVarArgs() && f.getBody().getNumAddresses() < 20000) {
+			// LIBRARY: documented prototype from ApplyLibraryPrototypes
+			if (!f.isThunk() && !f.isExternal() && !f.hasVarArgs() && f.getBody().getNumAddresses() < 20000 &&
+				f.getTags().stream().noneMatch(t -> t.getName().equals("LIBRARY"))) {
 				funcs.add(f);
 			}
 		}

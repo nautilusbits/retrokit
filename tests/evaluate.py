@@ -134,12 +134,15 @@ def evaluate(vdir, verbose=False):
     code_start, code_end = blocks[code_obj][0], blocks[code_obj][1]
 
     truth = {}   # addr -> (name, own)
+    aliases = {}  # addr -> every map name there
     for seg, off, name, own in parse_map(os.path.join(vdir, "engine.map")):
         if seg is None:     # flat map (PE): absolute addresses
-            if code_start <= off <= code_end:
-                truth.setdefault(off, (norm(name), own))
-        elif seg == code_obj:
-            truth.setdefault(blocks[seg][0] + off, (norm(name), own))
+            a = off if code_start <= off <= code_end else None
+        else:
+            a = blocks[seg][0] + off if seg == code_obj else None
+        if a is not None:
+            truth.setdefault(a, (norm(name), own))
+            aliases.setdefault(a, set()).add(norm(name))
     addrs = sorted(truth)
     size_of = {a: (addrs[i + 1] if i + 1 < len(addrs) else code_end) - a for i, a in enumerate(addrs)}
 
@@ -171,6 +174,8 @@ def evaluate(vdir, verbose=False):
     m["own_total"], m["lib_total"] = len(own), len(lib)
     m["own_found"] = sum(1 for a in own if a in gh)
     m["lib_found"] = sum(1 for a in lib if a in gh)
+    # library functions named by signature (any alias the map lists at that address counts)
+    m["lib_named"] = sum(1 for a in lib if a in gh and norm(gh[a]["name"]) in aliases[a])
     for a in own:
         if a not in gh:
             issues.append("missing   %08x %s" % (a, truth[a][0]))
@@ -246,7 +251,7 @@ def evaluate(vdir, verbose=False):
     return m
 
 
-SUMMARY = [("own_found", "own_total"), ("lib_found", "lib_total"), ("own_params_ok", "own_total"),
+SUMMARY = [("own_found", "own_total"), ("lib_found", "lib_total"), ("lib_named", "lib_total"), ("own_params_ok", "own_total"),
            ("calls_args_ok", "calls_total"), ("strings_found", "strings_total")]
 COUNTERS = ["own_truncated", "extraout", "unaff", "undefined8", "in_reg", "warnings"]
 OWN_NOISE = ["extraout_own", "unaff_own", "undefined8_own", "in_reg_own", "warnings_own"]

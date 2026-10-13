@@ -3,4 +3,8 @@ Copyright 2026 The retro-kit authors
 
 This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 
+The library signatures in retrokit/sigs/ are byte patterns derived from the run-time libraries
+of Open Watcom 2.0 and Open Watcom 1.9, which are distributed under the Sybase Open Watcom
+Public License 1.0 (https://github.com/open-watcom/open-watcom-v2).
+
 retro-kit does not contain any game files or decompiled game code.
