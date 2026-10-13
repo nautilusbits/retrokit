@@ -197,6 +197,21 @@ If you kill the headless process, delete `ghidra_project\*.lock*`.
 
 ## 4. Data formats (common in DOS-era games)
 
+- **Music, sound, video**: `retrokit convert GAME_DIR [-o OUT]` finds the files by content
+  (not by extension; `--list` only reports) and converts them:
+  - XMIDI (`FORM XDIR` / `FORM XMID`; Miles AIL, MIDPAK) -> one standard MIDI file per
+    sequence. Sequence 1 is often an empty set-up sequence. AIL plays at 120 Hz; the XMIDI
+    tempo events are dropped (the delays already include them). Files often come in pairs
+    for MT-32 and General MIDI (`*GM.XMI`), and the MT-32 ones also need the custom timbres
+    (`TIMB` chunk) to sound right.
+  - HMI (`HMI-MIDISONG`) and HMP (`HMIMIDIP`), HMI SOS -> standard MIDI. HMI's own loop
+    and branch events (0xFE) are skipped.
+  - VOC (Creative Voice File) -> WAV: 8-bit unsigned and 16-bit signed PCM, silence,
+    extended and new-format blocks; Creative ADPCM blocks are reported, not decoded.
+  - Smacker (`SMK2`/`SMK4`), Bink (`BIK`), FLI/FLC -> MP4 through FFmpeg.
+  Verified on game files: every track of a few dozen HMI songs parses to its end-of-track
+  event and MT-32 / GM versions of the same XMIDI songs come out with the same length;
+  HMP only with synthetic test files so far.
 - **RNC ProPack** (`RNC\x01`): `retrokit rnc` (method 1, CRC verified).
   Common in both DOS and Amiga games.
 - `.TAB/.DAT` style sprite banks: TAB 6 B `{offset u32, w u8, h u8}`, RLE

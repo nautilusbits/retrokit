@@ -17,12 +17,14 @@
     retrokit sigs learn WS -o X.sig       signatures from the named functions of a workspace
     retrokit match ...                   transfer names to a related EXE (tools/match_names.py)
     retrokit le GAME.EXE info|dump|rec|s16|s32 ...   read LE tables at Ghidra addresses
+    retrokit convert FILE|DIR [-o OUT]   XMIDI/HMI/HMP -> MIDI, VOC -> WAV, Smacker/Bink/FLIC -> MP4
     retrokit rnc IN [OUT]                RNC ProPack decompressor
     retrokit flic info|png|video FILE ...  Autodesk FLI/FLC
 """
 import argparse
 import json
 import os
+import struct
 import subprocess
 import sys
 
@@ -33,6 +35,7 @@ from . import formats
 from . import ghidra as gh
 from . import libs
 from . import loader
+from . import media
 from . import paths
 from . import pipeline
 from . import sigs
@@ -225,6 +228,32 @@ def cmd_sigs(a):
     return 0
 
 
+def cmd_convert(a):
+    found = media.scan(a.path)
+    if a.list or not found:
+        for p, k in found:
+            print("%-5s %s" % (k, p))
+        if not found:
+            print("nothing convertible found in %s" % a.path)
+        return 0
+    base = a.path if os.path.isdir(a.path) else os.path.dirname(os.path.abspath(a.path))
+    out_root = a.output or os.path.join(base, "converted")
+    n = failed = 0
+    for p, k in found:
+        rel = os.path.relpath(os.path.dirname(os.path.abspath(p)), os.path.abspath(base))
+        try:
+            results = media.convert(p, os.path.normpath(os.path.join(out_root, rel)), a.ffmpeg)
+        except (ValueError, IndexError, struct.error) as e:
+            print("FAIL  %s: %s" % (p, e))
+            failed += 1
+            continue
+        for o, desc in results:
+            print("%-5s %s -> %s  (%s)" % (k, p, o or "-", desc))
+            n += o is not None
+    print("%d files written to %s%s" % (n, out_root, ", %d failed" % failed if failed else ""))
+    return 1 if failed else 0
+
+
 def cmd_install_loader(a):
     ghidra = gh.find(a.ghidra)
     loader.install(ghidra, build_only=a.build_only)
@@ -310,6 +339,12 @@ def build_parser():
     s.add_argument("--lib", action="append", help="build: OMF library (repeatable)")
     s.add_argument("--label", help="build: description stored in the file")
     s.add_argument("--system", default="dos4g", help="build: wlink system for the reference link")
+
+    s = add("convert", cmd_convert, "game music, sound and video to MIDI / WAV / MP4 (by content, not extension)")
+    s.add_argument("path", help="file or directory")
+    s.add_argument("-o", "--output", help="output directory (default <dir>/converted)")
+    s.add_argument("--list", action="store_true", help="only list what would be converted")
+    s.add_argument("--ffmpeg", help="ffmpeg executable for video (default: from PATH)")
 
     for name, tool, help_ in [("strings", "strings_scan.py", "PE string inventory without Ghidra: EXE OUT_DIR"),
                               ("match", "match_names.py", "transfer names to a related EXE (see --help)"),

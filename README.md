@@ -78,7 +78,8 @@ What the pipeline does:
   targets and after padding until no new ones turn up, the same string / parameter / prototype
   passes, export.
 
-Other commands: `libs` (libraries in use), `sigs match|build|learn` (library signatures, see
+Other commands: `libs` (libraries in use), `convert` (XMIDI/HMI/HMP -> MIDI, VOC -> WAV,
+Smacker/Bink/FLIC -> MP4, by content), `sigs match|build|learn` (library signatures, see
 `docs/WORKFLOW.md`),
 `entries` (PE: code addresses without a function), `modules --rules FILE`
 (PE: functions → original source files via assert paths), `strings EXE OUT` (PE string inventory

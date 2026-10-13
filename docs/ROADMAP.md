@@ -31,7 +31,10 @@ library signatures are shipped only when built from open-source or public-domain
      math387 and C++ run-time signatures, `scripts/build_sigs.py`
    - open: prototypes for the APIs of proprietary libraries (Miles, Smacker, Bink, HMI) - with
      Win32 (step 9), where they are imported by name; AIL 2.0 is 16-bit only; libpng, Lua
-6. Data formats: XMIDI -> MIDI, Miles driver files, VOC, Smacker/Bink via FFmpeg
+6. ~~Data formats: `retrokit convert` - XMIDI, HMI, HMP -> MIDI, VOC -> WAV, Smacker/Bink/FLIC
+   via FFmpeg~~
+   - open: Creative ADPCM in VOC, MT-32 timbres (XMIDI TIMB, AIL global timbre library) for
+     faithful MT-32 output, DMX MUS, CMF, HMP checked on real files
 7. MCP server over the export (function/xref/string/table queries, name proposals, guarded re-export)
 8. Release 0.1 (DOS)
 9. Win32: MSVC RTTI (classes, vtables), DirectX 3-9 COM interfaces, RAD/FMOD/BASS prototypes,

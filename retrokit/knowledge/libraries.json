@@ -55,7 +55,7 @@
     "*.FLT",
     "*.ASI"
    ],
-   "notes": "Digital audio and MIDI through loadable drivers (.DIG digital, .MDI MIDI; the setup program writes DIG.INI / MDI.INI). Music is usually Extended MIDI (XMIDI, .XMI: IFF 'FORM XDIR'/'XMID' with per-sequence timbre lists); convert it to standard MIDI for a port. Win32 versions export AIL_* functions by name from MSS32.DLL, which names the call sites directly. Statically linked DOS builds need learned signatures ('retrokit sigs learn'). Port: an audio mixer (SDL_mixer, miniaudio) plus an XMIDI-to-MIDI converter and a General MIDI synthesizer.",
+   "notes": "Digital audio and MIDI through loadable drivers (.DIG digital, .MDI MIDI; the setup program writes DIG.INI / MDI.INI). Music is usually Extended MIDI (XMIDI, .XMI: IFF 'FORM XDIR'/'XMID' with per-sequence timbre lists); 'retrokit convert' turns it into standard MIDI. Win32 versions export AIL_* functions by name from MSS32.DLL, which names the call sites directly. Statically linked DOS builds need learned signatures ('retrokit sigs learn'). Port: an audio mixer (SDL_mixer, miniaudio) plus the converted MIDI on a General MIDI synthesizer.",
    "magic": [
     "FORM\u0000\u0000\u0000\u000eXDIR"
    ]
@@ -81,7 +81,7 @@
     "*.HMI",
     "HMISET.CFG"
    ],
-   "notes": "Sound and music library of many mid-1990s DOS games; drivers in HMIDRV.386 / HMIMDRV.386, music in HMI's MIDI variants (.HMP, .HMI), which convert to standard MIDI. Port: audio mixer plus HMP-to-MIDI conversion."
+   "notes": "Sound and music library of many mid-1990s DOS games; drivers in HMIDRV.386 / HMIMDRV.386, music in HMI's MIDI variants (.HMP, .HMI), which 'retrokit convert' turns into standard MIDI. Port: audio mixer plus the converted MIDI."
   },
   {
    "id": "digpak",
@@ -144,7 +144,7 @@
     "*.SMK",
     "SMACKW32.DLL"
    ],
-   "notes": "8-bit palettised video (.SMK, signature 'SMK2'/'SMK4'). The Win32 API is exported by name from SMACKW32.DLL (SmackOpen, SmackDoFrame, SmackNextFrame, SmackWait, SmackToBuffer, SmackClose); DOS games link it statically. Port: FFmpeg or libsmacker decode .SMK; 'retrokit flic' covers the older Autodesk FLI/FLC instead.",
+   "notes": "8-bit palettised video (.SMK, signature 'SMK2'/'SMK4'). The Win32 API is exported by name from SMACKW32.DLL (SmackOpen, SmackDoFrame, SmackNextFrame, SmackWait, SmackToBuffer, SmackClose); DOS games link it statically. Port: FFmpeg or libsmacker decode .SMK ('retrokit convert' -> MP4); 'retrokit flic' covers the older Autodesk FLI/FLC instead.",
    "magic": [
     "SMK2",
     "SMK4"
