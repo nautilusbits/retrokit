@@ -7,15 +7,17 @@ struct). No game binaries or game code are used or stored here.
 
 ```
 python tests/build_fixtures.py                # needs Open Watcom ($WATCOM), dev/CI only
-python tests/run_tests.py -v                  # build + retrokit analyze + score + compare with baseline.json
+python tests/run_tests.py -v                  # build + loader check + retrokit analyze + score + baseline
+python tests/check_loader.py                  # LE/LX loader vs the independent Python model only
 python tests/run_tests.py --no-build --no-analyze   # re-score existing results
 python tests/run_tests.py --update-baseline   # accept the current scores
 python -m unittest discover -s tests          # tools, formats, CLI (no Ghidra)
 ```
 
 Variants (`build_fixtures.py`): stack (`-5s`) and register (`-5r`) convention,
-DOS/4GW, DOS32A and PMODE/W stubs, optimized (`-oneatx`) and unoptimized (`-od`), and a
-Win32 PE (`nt_s`) for the PE pipeline. `retrokit analyze` runs with automatic detection; the
+DOS/4GW, DOS32A and PMODE/W stubs, optimized (`-oneatx`) and unoptimized (`-od`), a DOS/4G
+BW bind (`dos4g_r_bw`, wrapped by the script), an OS/2 LX (`os2_r`: imports, 16-bit thunk
+object) and a Win32 PE (`nt_s`) for the PE pipeline. `retrokit analyze` runs with automatic detection; the
 detected calling convention must match the one the variant was compiled with.
 The linker map (`engine.map`) gives the address and module of every function;
 `evaluate.py` scores the export against it and against the sources:

@@ -129,7 +129,8 @@ def evaluate(vdir, verbose=False):
     decomp = os.path.join(vdir, "analysis", "decomp")
     src = parse_sources()
     blocks = parse_blocks(os.path.join(decomp, "memory_blocks.txt"))
-    code_obj = min((k for k, v in blocks.items() if "x" in v[2]), key=lambda k: blocks[k][0])
+    # main code block: the largest executable one (LX programs start with a small 16-bit thunk object)
+    code_obj = max((k for k, v in blocks.items() if "x" in v[2]), key=lambda k: blocks[k][1] - blocks[k][0])
     code_start, code_end = blocks[code_obj][0], blocks[code_obj][1]
 
     truth = {}   # addr -> (name, own)

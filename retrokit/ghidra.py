@@ -6,7 +6,9 @@ import subprocess
 
 from . import paths
 
-EXT_NAME = "ghidra-lx-loader"
+EXT_NAME = "retrokit-le-loader"
+LEGACY_EXT_NAME = "ghidra-lx-loader"
+LOADER_CLASS = "LinearExecutableLoader"   # -loader name for analyzeHeadless
 CSPECS = [  # file, id, display name
     ("x86watcom.cspec", "watcom", "Watcom C"),
     ("x86watcom_reg.cspec", "watcomreg", "Watcom C (register)"),
@@ -82,9 +84,9 @@ def java_version(java):
     return int(m.group(2)) if major == 1 and m.group(2) else major
 
 
-def loader_status(ghidra):
+def loader_status(ghidra, name=EXT_NAME):
     """dict: installed (bool), version (extension.properties) and registered cspec ids."""
-    ext = os.path.join(ghidra, "Ghidra", "Extensions", EXT_NAME)
+    ext = os.path.join(ghidra, "Ghidra", "Extensions", name)
     st = {"installed": os.path.isdir(ext), "version": None, "cspecs": []}
     props = os.path.join(ext, "extension.properties")
     if os.path.isfile(props):

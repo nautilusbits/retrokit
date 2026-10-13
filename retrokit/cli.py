@@ -190,7 +190,7 @@ def build_parser():
     s.add_argument("exe", help="executable, or an existing workspace to re-run with its settings")
     s.add_argument("-o", "--out", help="workspace dir (default <exe dir>/<exe>_analysis)")
     s.add_argument("--cspec", default="auto", choices=["auto", "watcom", "watcomreg"], help="LE: calling convention")
-    s.add_argument("--loader", default="auto", choices=["auto", "LeLoader", "LxLoader", "VxDLoader"])
+    s.add_argument("--loader", default="auto", help="Ghidra loader class (default: LinearExecutableLoader for LE/LX)")
     s.add_argument("--no-prototypes", action="store_true", help="skip parameter counts / prototype recovery")
     s.add_argument("--entry-passes", type=int, default=3, help="PE: find_entries rounds after the first export")
     s.add_argument("--names", help="names_*.csv file or directory to apply before export")

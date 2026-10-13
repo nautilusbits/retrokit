@@ -5,7 +5,8 @@ PACKAGE = os.path.dirname(os.path.abspath(__file__))
 KIT_ROOT = os.path.dirname(PACKAGE)          # repository checkout (or site-packages)
 GHIDRA_SCRIPTS = os.path.join(PACKAGE, "ghidra_scripts")
 TOOLS = os.path.join(PACKAGE, "tools")
-LOADER = os.path.join(PACKAGE, "ghidra-lx-loader")
+LE_LOADER = os.path.join(PACKAGE, "le-loader")              # our LE/LX loader extension
+CSPECS = os.path.join(LE_LOADER, "data", "languages")       # Watcom compiler specs
 
 
 def tool(name):

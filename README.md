@@ -2,8 +2,9 @@
 
 A toolkit for decompiling 32-bit games from roughly 1993–2010 with headless Ghidra:
 
-- **DOS LE/LX** (DOS/4GW, DOS/32A, PMODE/W, CauseWay) built with Watcom C/C++ – with its own
-  LE/LX loader for Ghidra and Watcom compiler specs for both calling conventions.
+- **DOS LE/LX** (DOS/4GW, DOS/32A, PMODE/W, CauseWay, DOS/4G bind; also OS/2 LX and VxD)
+  built with Watcom C/C++ – with its own LE/LX loader for Ghidra and Watcom compiler specs for
+  both calling conventions.
 - **Win32 PE** (typically MSVC).
 
 The output is a workspace with one large `.c` file holding every function plus indexes
@@ -84,7 +85,7 @@ templates for AI agents in `docs/AGENT_PROMPTS.md`; planned work in `docs/ROADMA
 retrokit/               Python package (CLI: retrokit/cli.py)
   ghidra_scripts/       headless Ghidra scripts used by the pipelines
   tools/                standalone Python tools behind the CLI commands
-  ghidra-lx-loader/     LE/LX loader sources + Watcom compiler specs (data/languages/)
+  le-loader/            LE/LX loader for Ghidra (Java) + Watcom compiler specs (data/languages/)
 tests/                  synthetic test programs, scoring against the linker map, baseline
 docs/                   WORKFLOW, AGENT_PROMPTS, ROADMAP
 ```
@@ -109,14 +110,15 @@ docs/                   WORKFLOW, AGENT_PROMPTS, ROADMAP
 ## Tests
 
 `tests/` builds small synthetic programs with Open Watcom (a dev/CI dependency only: DOS/4GW,
-DOS/32A, PMODE/W, Win32; stack and register convention), runs `retrokit analyze` on them and
+DOS/32A, PMODE/W, DOS/4G bind, OS/2 LX, Win32; stack and register convention), checks the
+loader against an independent Python model of each image, runs `retrokit analyze` on them and
 scores the result against the linker map (function addresses, parameter counts, call arguments,
 string literals, truncated functions, decompiler noise). See `tests/README.md`.
 
 ## License
 
-Apache License 2.0 (`LICENSE`). The `ghidra-lx-loader` loader is derived from the upstream
-project [yetmorecode/ghidra-lx-loader](https://github.com/yetmorecode/ghidra-lx-loader)
-(also Apache 2.0); the changes are listed in `NOTICE`.
+Apache License 2.0 (`LICENSE`). Earlier versions of the kit used
+[yetmorecode/ghidra-lx-loader](https://github.com/yetmorecode/ghidra-lx-loader); the current
+loader (`retrokit/le-loader`) is a new implementation.
 
 retro-kit contains no game files and no decompiled game code. Use it only on software you own.

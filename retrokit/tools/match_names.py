@@ -42,7 +42,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 class Image:
-    """LE objects as ghidra-lx-loader maps them (le.py loaded once per EXE)."""
+    """LE objects as retrokit-le-loader maps them (le.py loaded once per EXE)."""
 
     def __init__(self, path):
         old = os.environ.get("LE_EXE")

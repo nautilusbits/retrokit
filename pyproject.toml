@@ -34,13 +34,7 @@ version = { attr = "retrokit.__version__" }
 retrokit = [
     "ghidra_scripts/*.java",
     "tools/*.py",
-    "ghidra-lx-loader/*",
-    "ghidra-lx-loader/data/**/*",
-    "ghidra-lx-loader/ghidra_scripts/**/*",
-    "ghidra-lx-loader/lib/*.jar",
-    "ghidra-lx-loader/lib/README.txt",
-    "ghidra-lx-loader/src/**/*",
+    "le-loader/*",
+    "le-loader/data/**/*",
+    "le-loader/src/**/*",
 ]
-
-[tool.setuptools.exclude-package-data]
-retrokit = ["ghidra-lx-loader/prebuilt_*.zip", "ghidra-lx-loader/lib/*-src.zip", "ghidra-lx-loader/build/**"]

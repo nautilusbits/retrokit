@@ -90,8 +90,14 @@ def _headless(ghidra, d, args, phase):
     return log
 
 
+LEGACY_LOADERS = ("LeLoader", "LxLoader", "VxDLoader")   # ghidra-lx-loader, replaced by retrokit-le-loader
+
+
 def _run_le(ws, ghidra, d, skip_import, names, entries, out):
     name = os.path.basename(ws["exe"])
+    if ws["loader"] in LEGACY_LOADERS:
+        out("note: workspace used the legacy %s, importing with %s" % (ws["loader"], gh.LOADER_CLASS))
+        ws["loader"] = gh.LOADER_CLASS
     if not skip_import:
         out("== import + analysis")
         _headless(ghidra, d, ["-import", ws["exe"], "-loader", ws["loader"], "-processor", "x86:LE:32:default",

@@ -115,7 +115,7 @@ class TestIdentifyFixtures(unittest.TestCase):
                 cli.main(["info", exe, "--json"])
             info = json.loads(out.getvalue())
             self.assertEqual((info["format"], info["extender"], info["compiler"], info["loader"]),
-                             (fmt, ext, "Watcom C/C++", "LeLoader"), name)
+                             (fmt, ext, "Watcom C/C++", "LinearExecutableLoader"), name)
             self.assertEqual(info["convention"]["cspec"], cspec, name)
 
     def test_pe_variant(self):

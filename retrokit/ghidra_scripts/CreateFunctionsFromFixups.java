@@ -37,21 +37,25 @@ public class CreateFunctionsFromFixups extends GhidraScript {
 	/** Case code of a switch lies close to its JMP; a slot pointing further away ends the table. */
 	private static final long MAX_CASE_DISTANCE = 0x4000;
 
-	private Address codeStart, codeEnd;
+	/** every executable block (LX modules can have several code objects, e.g. a 16-bit thunk object) */
+	private final AddressSet code = new AddressSet();
 
 	private boolean inCode(Address a) {
-		return a.compareTo(codeStart) >= 0 && a.compareTo(codeEnd) <= 0;
+		return code.contains(a);
 	}
 
 	@Override
 	protected void run() throws Exception {
-		MemoryBlock code = currentProgram.getMemory().getBlock(".object1");
-		if (code == null) {
-			printerr("No .object1 block");
+		for (MemoryBlock b : currentProgram.getMemory().getBlocks()) {
+			if (b.isExecute() && b.isInitialized() && !b.isOverlay()) {
+				code.add(b.getStart(), b.getEnd());
+			}
+		}
+		if (code.isEmpty()) {
+			printerr("No executable block");
 			return;
 		}
-		codeStart = code.getStart();
-		codeEnd = code.getEnd();
+		Address codeStart = code.getMinAddress();
 
 		// source -> target of every applied 32-bit offset fixup that points into code
 		Map<Address, Address> fixups = new TreeMap<>();

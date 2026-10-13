@@ -50,6 +50,9 @@ def checks(ghidra_dir=None):
         yield FAIL, "LE/LX loader", "built for Ghidra %s, this is %s: retrokit install-loader" % (st["version"], gv)
     else:
         yield OK, "LE/LX loader", "installed for %s" % gv
+    if gh.loader_status(ghidra, gh.LEGACY_EXT_NAME)["installed"]:
+        yield WARN, "legacy loader", "ghidra-lx-loader is installed but no longer used (remove %s)" % os.path.join(
+            ghidra, "Ghidra", "Extensions", gh.LEGACY_EXT_NAME)
     missing = [cid for _, cid, _ in gh.CSPECS if cid not in st["cspecs"]]
     yield (FAIL if missing else OK), "Watcom cspecs", (
         "missing %s: retrokit install-loader" % ", ".join(missing) if missing else ", ".join(st["cspecs"]))

@@ -11,8 +11,12 @@ library signatures are shipped only when built from open-source or public-domain
 3. ~~Python CLI (`retrokit doctor | install-loader | info | analyze | reexport | names | show | ...`),
    automatic format and calling-convention detection, settings remembered per workspace,
    PowerShell scripts replaced (Linux run in CI not verified yet)~~
-4. Own LE/LX loader, validated against the current one on the test corpus; Watcom debug info,
-   PMODE/W compressed pages
+4. ~~Own LE/LX loader (retrokit-le-loader), identical to the legacy loader on every LE test
+   program, checked against an independent Python model (LX, imports, BW bind included)~~
+   - open: Watcom debug info, PMODE/W compressed executables, LX EXEPACK2 pages
+   - open: LX programs linked without internal fixups (OS/2 EXEs) - pointer tables cannot be
+     found from fixups; scan the data objects for code pointers instead (as find_entries does
+     for PE)
 5. Library knowledge base: detection rules (strings, imports, file signatures), prototypes,
    format notes and porting hints per library; signature generator
    - shipped signatures: Watcom clib (Open Watcom sources), AIL 2.0 (public domain), zlib, ...

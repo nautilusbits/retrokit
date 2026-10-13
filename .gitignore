@@ -14,10 +14,6 @@ ghidra_project/
 *.LX
 
 # build output / release artifacts
-retrokit/ghidra-lx-loader/build/
-retrokit/ghidra-lx-loader/dist/
-retrokit/ghidra-lx-loader/prebuilt_*.zip
-retrokit/ghidra-lx-loader/lib/ghidra-lx-loader-src.zip
 
 # Python
 __pycache__/

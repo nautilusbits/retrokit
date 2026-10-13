@@ -27,12 +27,12 @@ Ghidra).
 
 ## 1. Loader and compiler spec (LE/LX)
 
-`ghidra-lx-loader` (derived from yetmorecode/ghidra-lx-loader) is the only usable LE loader;
-an upstream release may not exist for your Ghidra version, so it is built from source
-(`retrokit install-loader`). The loader sets up the objects from the LE table (including r/w/x permissions
+The kit's own loader (`retrokit/le-loader`, built against your Ghidra by
+`retrokit install-loader`) sets up the objects from the LE table (including r/w/x permissions
 from the LE flags; typically code in object 1 from 0x10000, data in the next object – see
 `memory_blocks.txt`), **applies the fixups** (important – without them there are no references
-to strings/data) and writes them into the Ghidra relocation table.
+to strings/data) and writes them into the Ghidra relocation table. It also loads DOS/4G
+BW-bound files, OS/2 LX modules (imports as external locations) and VxDs.
 
 `x86watcom.cspec` has two prototypes:
 - `__watcall_stack` (**default**): arguments pushed, caller cleans up

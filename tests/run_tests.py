@@ -19,6 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import build_fixtures  # noqa: E402
+import check_loader  # noqa: E402
 import evaluate  # noqa: E402
 
 BUILD = os.path.join(HERE, "fixtures", "build")
@@ -79,6 +80,7 @@ def main():
     ap.add_argument("--watcom", default=os.environ.get("WATCOM"))
     ap.add_argument("--no-build", action="store_true")
     ap.add_argument("--no-analyze", action="store_true")
+    ap.add_argument("--no-loader-check", action="store_true", help="skip tests/check_loader.py")
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--update-baseline", action="store_true")
     ap.add_argument("-v", "--verbose", action="store_true")
@@ -91,6 +93,12 @@ def main():
             sys.exit("set WATCOM / --watcom, or use --no-build with prebuilt fixtures")
         for v in variants:
             build_fixtures.build(os.path.abspath(a.watcom), BUILD, v)
+    failed = False
+    if not a.no_analyze and not a.no_loader_check:
+        if not a.ghidra:
+            sys.exit("set GHIDRA_INSTALL_DIR / --ghidra")
+        print("loader check (retrokit-le-loader vs the Python model):")
+        failed |= bool(check_loader.check(a.ghidra, variants, out=lambda s: print("  " + s)))
     if not a.no_analyze:
         if not a.ghidra:
             sys.exit("set GHIDRA_INSTALL_DIR / --ghidra")
@@ -102,7 +110,6 @@ def main():
     if os.path.exists(BASELINE):
         with open(BASELINE) as fh:
             base = json.load(fh)
-    failed = False
     for v in variants:
         m = evaluate.evaluate(os.path.join(BUILD, v))
         print(evaluate.format_metrics(m))

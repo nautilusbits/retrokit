@@ -19,7 +19,7 @@ def find_le():
     """Return (le_offset, mz_base). mz_base is the MZ header the LE belongs to:
     0 for a plain stub+LE file, the secondary MZ for DOS/4G "BW"-bound EXEs
     (a DOS/4G bound executable). LE offsets such as the data pages
-    offset are relative to that MZ, same as in ghidra-lx-loader."""
+    offset are relative to that MZ, same as in retrokit-le-loader."""
     def u16(o): return struct.unpack_from("<H", data, o)[0]
     def is_le(o):
         return 0 <= o < len(data) - 8 and data[o:o+2] in (b"LE", b"LX") \

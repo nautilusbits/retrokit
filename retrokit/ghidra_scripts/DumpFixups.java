@@ -15,17 +15,16 @@ import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.reloc.Relocation;
 
 public class DumpFixups extends GhidraScript {
+	private boolean isCode(Address a) {
+		MemoryBlock b = currentProgram.getMemory().getBlock(a);
+		return b != null && b.isExecute() && !b.isOverlay();
+	}
+
 	@Override
 	protected void run() throws Exception {
 		String[] args = getScriptArgs();
 		File out = new File(args.length > 0 ? args[0] : "fixups.txt");
 		boolean pe = currentProgram.getExecutableFormat().contains("PE");
-		MemoryBlock code = currentProgram.getMemory().getBlock(".object1");
-		for (MemoryBlock b : currentProgram.getMemory().getBlocks()) {
-			if (code == null && b.isExecute()) {
-				code = b;
-			}
-		}
 		int n = 0;
 		try (PrintWriter w = new PrintWriter(new FileWriter(out))) {
 			Iterator<Relocation> it = currentProgram.getRelocationTable().getRelocations();
@@ -58,7 +57,7 @@ public class DumpFixups extends GhidraScript {
 					kind = f.getEntryPoint().equals(target) ? "FUNC" : "INFUNC";
 					desc = f.getName();
 				}
-				else if (code != null && code.contains(target)) {
+				else if (isCode(target)) {
 					kind = "CODE?";
 				}
 				else {
