@@ -57,6 +57,19 @@ def checks(ghidra_dir=None):
     yield (FAIL if missing else OK), "Watcom cspecs", (
         "missing %s: retrokit install-loader" % ", ".join(missing) if missing else ", ".join(st["cspecs"]))
 
+    if os.name != "nt":
+        # an unzip that drops the executable bits (Python's zipfile, some file managers) leaves
+        # the decompiler and the demangler unrunnable; headless runs then fail at import
+        native = [os.path.join(r, f) for r, _, fs in os.walk(os.path.join(ghidra, "Ghidra")) if "%sos%s" % (os.sep, os.sep)
+                  in r + os.sep for f in fs if not f.endswith((".txt", ".md", ".html"))]
+        bad = [p for p in native if not os.access(p, os.X_OK)]
+        support = [os.path.join(ghidra, "support", f) for f in ("analyzeHeadless", "launch.sh")]
+        bad += [p for p in support if os.path.exists(p) and not os.access(p, os.X_OK)]
+        yield (FAIL if bad else OK), "Ghidra native", (
+            "%d files not executable (e.g. %s): chmod +x \"%s\"/support/* and "
+            "find \"%s\" -path '*/os/*' -type f -exec chmod +x {} +" % (len(bad), os.path.relpath(bad[0], ghidra), ghidra, ghidra)
+            if bad else "%d helpers executable" % len(native))
+
     scripts = [f for f in os.listdir(paths.GHIDRA_SCRIPTS) if f.endswith(".java")]
     yield (OK if scripts else FAIL), "Ghidra scripts", "%d in %s" % (len(scripts), paths.GHIDRA_SCRIPTS)
 

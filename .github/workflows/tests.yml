@@ -57,11 +57,14 @@ jobs:
         shell: bash
         run: |
           gh release download "$GHIDRA_TAG" -R NationalSecurityAgency/ghidra -p "$GHIDRA_ZIP" -D "$RUNNER_TEMP"
+          # Python's zipfile drops the executable bits: restore them for the scripts and every
+          # native helper (decompiler, GNU demangler, ...)
           python -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$RUNNER_TEMP/$GHIDRA_ZIP" "$RUNNER_TEMP"
-          chmod +x "$RUNNER_TEMP/$GHIDRA_DIR/support/"* "$RUNNER_TEMP/$GHIDRA_DIR/Ghidra/Features/Decompiler/os/"*/* || true
+          chmod +x "$RUNNER_TEMP/$GHIDRA_DIR/support/"*
+          find "$RUNNER_TEMP/$GHIDRA_DIR" -path "*/os/*" -type f -exec chmod +x {} +
           gh release download "$OW_TAG" -R open-watcom/open-watcom-v2 -p ow-snapshot.tar.xz -D "$RUNNER_TEMP"
-          mkdir -p "$RUNNER_TEMP/openwatcom"
-          tar -xJf "$RUNNER_TEMP/ow-snapshot.tar.xz" -C "$RUNNER_TEMP/openwatcom"
+          # tarfile instead of tar: GNU tar on Windows reads "D:\..." as a remote host
+          python -c "import tarfile,sys; tarfile.open(sys.argv[1]).extractall(sys.argv[2], filter='tar')" "$RUNNER_TEMP/ow-snapshot.tar.xz" "$RUNNER_TEMP/openwatcom"
 
       - name: Install LE loader
         shell: bash
