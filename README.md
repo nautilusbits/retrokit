@@ -55,6 +55,15 @@ GAME_analysis/
   logs/
 ```
 
+**AI agents**: `retrokit mcp GAME_analysis` is an MCP server (stdio, no extra packages) over
+the workspace: functions, decompiled code, call graph, cross references, strings, pointer
+tables, disassembly and bytes, libraries; it records name proposals and notes and can
+re-export with the names applied (on request, in the background). Claude Code:
+
+```
+claude mcp add retrokit -- retrokit mcp /path/to/GAME_analysis
+```
+
 Names: write proposals to `notes/names_<topic>.csv` (`addr,name,confidence,comment`, confidence
 `V` verified or `G` guess); `retrokit names WS` renames functions/labels (V wins over G,
 collisions get `_<addr>`) and re-exports.

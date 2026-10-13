@@ -41,11 +41,15 @@ def _names_args(*names):
     return ["-postScript", "ApplyNames.java"] + names if names else []
 
 
-def _entries_args(*entries):
+def _entries_args(*entries, trusted=None):
+    """functions at the addresses of the files; trusted (library signature starts) may split
+    a function whose body runs over them"""
     out = []
     for e in entries:
         if e:
             out += ["-preScript", "CreateFunctionsAtEntries.java", "@" + os.path.abspath(e)]
+    if trusted:
+        out += ["-preScript", "CreateFunctionsAtEntries.java", "--split", "@" + os.path.abspath(trusted)]
     return out
 
 
@@ -151,7 +155,7 @@ def _run_le(ws, ghidra, d, skip_import, names, entries, out):
                   "import")
     lib_names, lib_entries = library_names(ws, d, out)
     out("== fix-up passes, parameter counts%s, export" % (", prototypes" if ws.get("prototypes", True) else ""))
-    args = ["-process", name] + _entries_args(entries, lib_entries) + [
+    args = ["-process", name] + _entries_args(entries, trusted=lib_entries) + [
         "-preScript", "FixTruncatedCallers.java",
         "-preScript", "CreateFunctionsFromFixups.java",
         "-preScript", "MarkStringsConstant.java"] + _library_args(lib_names)
@@ -170,7 +174,7 @@ def _export_pe(ws, ghidra, d, names, phase, out):
     """full export: strings, parameter counts and prototypes as for LE, then the dumps"""
     name = os.path.basename(ws["exe"])
     lib_names, lib_entries = library_names(ws, d, out)
-    args = ["-process", name] + _entries_args(lib_entries) + ["-noanalysis", "-preScript", "MarkStringsConstant.java"] + \
+    args = ["-process", name] + _entries_args(trusted=lib_entries) + ["-noanalysis", "-preScript", "MarkStringsConstant.java"] + \
         _library_args(lib_names)
     if ws.get("prototypes", True):
         args += ["-preScript", "ApplyStackConvention.java", "-postScript", "RecoverPrototypes.java"]

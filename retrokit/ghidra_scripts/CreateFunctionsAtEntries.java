@@ -27,6 +27,11 @@
 // the first real byte is a PUSH reg (50-57, the Watcom prologue), disassemble
 // there and create a function. Repeats until a pass finds nothing new.
 // Run it AFTER the fixup modes (arguments are processed in order).
+//
+// --split: addresses given after it that lie inside another function's body split that
+// function: it is re-created after the new one and ends where the new one starts. For
+// trusted starts only (library signatures): hand-written asm such as the Watcom start-up
+// code falls through into the next routines, so Ghidra's body swallows them.
 //@category RetroKit
 import ghidra.app.cmd.disassemble.DisassembleCommand;
 import ghidra.app.cmd.function.CreateFunctionCmd;
@@ -45,13 +50,18 @@ import java.util.Iterator;
 
 public class CreateFunctionsAtEntries extends GhidraScript {
 
-	private int processed, created, disassembled, inside, failed;
+	private int processed, created, disassembled, inside, failed, split;
+	private AddressSet splitAllowed = new AddressSet();
+	private boolean splitMode;
 
 	@Override
 	protected void run() throws Exception {
 		AddressSet targets = new AddressSet();
 		for (String a : getScriptArgs()) {
-			if (a.equals("--fixup-insns")) {
+			if (a.equals("--split")) {
+				splitMode = true;
+			}
+			else if (a.equals("--fixup-insns")) {
 				targets.add(fixupTargets(null, null));
 			}
 			else if (a.startsWith("--gap-prologues=")) {
@@ -71,6 +81,9 @@ public class CreateFunctionsAtEntries extends GhidraScript {
 					line = line.replaceAll("#.*", "").trim();
 					if (!line.isEmpty()) {
 						targets.add(parse(line));
+						if (splitMode) {
+							splitAllowed.add(parse(line));
+						}
 					}
 				}
 			}
@@ -84,8 +97,8 @@ public class CreateFunctionsAtEntries extends GhidraScript {
 			}
 			create(t);
 		}
-		println(String.format("Entries: %d processed, %d created (%d newly disassembled), %d inside an existing body, %d failed",
-			processed, created, disassembled, inside, failed));
+		println(String.format("Entries: %d processed, %d created (%d newly disassembled), %d inside an existing body " +
+			"(%d of them split off), %d failed", processed, created, disassembled, inside, split, failed));
 	}
 
 	private Address parse(String s) {
@@ -103,9 +116,44 @@ public class CreateFunctionsAtEntries extends GhidraScript {
 		processed++;
 		Function f = getFunctionContaining(t);
 		if (f != null) {
-			if (!f.getEntryPoint().equals(t)) {
-				inside++;
+			if (f.getEntryPoint().equals(t)) {
+				return;
+			}
+			inside++;
+			if (!splitAllowed.contains(t)) {
 				println("inside " + f.getName() + ": " + t);
+				return;
+			}
+			if (getInstructionAt(t) == null) {
+				// the container's flow decoded these bytes from another offset: decode from t
+				Instruction at = getInstructionContaining(t);
+				if (at != null) {
+					clearListing(at.getAddress(), at.getMaxAddress());
+				}
+				DisassembleCommand dc = new DisassembleCommand(t, null, true);
+				if (!dc.applyTo(currentProgram, monitor) || getInstructionAt(t) == null) {
+					failed++;
+					println("cannot disassemble " + t + " inside " + f.getName());
+					return;
+				}
+			}
+			// re-create the container after the new function: its body then stops at t
+			Address outer = f.getEntryPoint();
+			String name = f.getName();
+			SourceType src = f.getSymbol().getSource();
+			currentProgram.getFunctionManager().removeFunction(outer);
+			CreateFunctionCmd inner = new CreateFunctionCmd(null, t, null, SourceType.ANALYSIS);
+			boolean ok = inner.applyTo(currentProgram, monitor);
+			CreateFunctionCmd again = new CreateFunctionCmd(name, outer, null, src);
+			again.applyTo(currentProgram, monitor);
+			if (ok) {
+				split++;
+				created++;
+				println("split " + name + " at " + t);
+			}
+			else {
+				failed++;
+				println("cannot create function at " + t + " inside " + name + ": " + inner.getStatusMsg());
 			}
 			return;
 		}

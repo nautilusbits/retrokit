@@ -1,5 +1,13 @@
 # Task templates for AI agents (decompilation analysis)
 
+With an MCP client the agent can work through the retro-kit MCP server instead of reading
+files: `retrokit mcp <OUT>` (e.g. `claude mcp add retrokit -- retrokit mcp <OUT>`). Tools:
+workspace_info, libraries, list_functions, get_function, call_graph, xrefs, search_code,
+strings, pointer_tables, disassemble, read_bytes (read); propose_names, write_note (write
+to notes/ only); reexport + reexport_status (Ghidra, needs confirm=true). The templates below
+work the same way - replace "read the file" with the matching tool, and give one agent the
+right to reexport while the others only read and propose.
+
 Common header (fill in the paths):
 
 ```

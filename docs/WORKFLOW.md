@@ -246,6 +246,17 @@ out for tables indexed from a "virtual" base (id·stride) and for a changed reco
 
 ## 5. Delegating the analysis to AI agents
 
+`retrokit mcp GAME_analysis [OTHER_analysis ...]` serves the workspaces over the Model
+Context Protocol (stdio, newline-delimited JSON-RPC, no third-party packages). Read tools work
+on the export only and are cheap: `get_function` returns the C with callers/callees,
+`xrefs` everything that points at an address, `pointer_tables` the handler tables and record
+arrays found from fixups (with their stride), `disassemble`/`read_bytes` the loaded image
+straight from the executable. `propose_names` validates the identifiers and addresses and
+writes `notes/names_<topic>.csv` (a new proposal for an address replaces the old one in that
+file; `list_proposals` shows conflicts between files), `write_note` appends to
+`notes/<topic>.md`, and `reexport` (confirm=true) runs `retrokit names` in the background -
+poll `reexport_status`; the server reloads the export when it finishes.
+
 The decompilation is too large to read in one go; splitting it into
 several parallel tasks has worked well (startup/state/loading, world generator, entities/AI,
 renderer), each with precisely defined inputs (paths, `showfn.py`, `fixups.txt`,

@@ -17,6 +17,7 @@
     retrokit sigs learn WS -o X.sig       signatures from the named functions of a workspace
     retrokit match ...                   transfer names to a related EXE (tools/match_names.py)
     retrokit le GAME.EXE info|dump|rec|s16|s32 ...   read LE tables at Ghidra addresses
+    retrokit mcp WS [WS ...]             MCP server (stdio) over workspaces, for AI agents
     retrokit convert FILE|DIR [-o OUT]   XMIDI/HMI/HMP -> MIDI, VOC -> WAV, Smacker/Bink/FLIC -> MP4
     retrokit rnc IN [OUT]                RNC ProPack decompressor
     retrokit flic info|png|video FILE ...  Autodesk FLI/FLC
@@ -254,6 +255,14 @@ def cmd_convert(a):
     return 1 if failed else 0
 
 
+def cmd_mcp(a):
+    from . import mcp_server
+    for w in a.workspaces:
+        _workspace(w)
+    mcp_server.serve(a.workspaces)
+    return 0
+
+
 def cmd_install_loader(a):
     ghidra = gh.find(a.ghidra)
     loader.install(ghidra, build_only=a.build_only)
@@ -339,6 +348,10 @@ def build_parser():
     s.add_argument("--lib", action="append", help="build: OMF library (repeatable)")
     s.add_argument("--label", help="build: description stored in the file")
     s.add_argument("--system", default="dos4g", help="build: wlink system for the reference link")
+
+    s = add("mcp", cmd_mcp, "MCP server over one or more workspaces (stdio), e.g. "
+                            "'claude mcp add retrokit -- retrokit mcp GAME_analysis'")
+    s.add_argument("workspaces", nargs="+")
 
     s = add("convert", cmd_convert, "game music, sound and video to MIDI / WAV / MP4 (by content, not extension)")
     s.add_argument("path", help="file or directory")

@@ -35,7 +35,8 @@ library signatures are shipped only when built from open-source or public-domain
    via FFmpeg~~
    - open: Creative ADPCM in VOC, MT-32 timbres (XMIDI TIMB, AIL global timbre library) for
      faithful MT-32 output, DMX MUS, CMF, HMP checked on real files
-7. MCP server over the export (function/xref/string/table queries, name proposals, guarded re-export)
+7. ~~MCP server over the export (`retrokit mcp`: function/xref/string/table/disassembly queries,
+   name proposals, notes, guarded background re-export)~~
 8. Release 0.1 (DOS)
 9. Win32: MSVC RTTI (classes, vtables), DirectX 3-9 COM interfaces, RAD/FMOD/BASS prototypes,
    MSVC CRT identification
