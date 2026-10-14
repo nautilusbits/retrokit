@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 - unreleased
+## 0.2.0 - 2026-10-14
 
 Win32:
 - DirectX COM interfaces (DirectDraw 1-7, DirectSound, DirectInput 1-8, Direct3D 3-9): interface
