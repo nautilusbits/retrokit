@@ -83,6 +83,7 @@ by name. Long results are cut at about 60,000 characters with a note - narrow th
 | `workspace_info` | - | executable, format, extender, compiler, calling convention, function counts (named / unnamed), libraries, name files |
 | `libraries` | - | libraries of the period the game uses (Miles, HMI, Smacker, zlib, ...) with evidence, version, notes on formats and porting |
 | `list_functions` | `pattern` (regex on the name), `which` all/named/unnamed, `sort` addr/size/callers, `offset`, `limit` (100, max 1000) | address, name, size, callers, callees, signature |
+| `classes` | `pattern` | MSVC C++ classes from RTTI: bases, vtables, virtual methods (PE) |
 | `get_function` | `functions`* (list of names / addresses, up to 20) | decompiled C with signature, callers and callees; for an address inside a function, that function |
 | `call_graph` | `function`*, `direction` callers/callees/both, `depth` 1-4 | the call tree |
 | `xrefs` | `address`* | calls to it and every pointer to it (fixup / relocation) with the function that holds it |

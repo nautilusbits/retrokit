@@ -37,6 +37,7 @@ retrokit = [
     "sigs/*.sig.gz",
     "knowledge/*.h",
     "knowledge/*.json",
+    "knowledge/win32/*.h",
     "le-loader/*",
     "le-loader/data/**/*",
     "le-loader/src/**/*",

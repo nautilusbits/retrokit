@@ -29,6 +29,63 @@ MS_LINKERS = {(5, 0): "VC++ 5", (5, 10): "VC++ 5 (SP)", (6, 0): "VC++ 6", (7, 0)
               (7, 10): "VS .NET 2003", (8, 0): "VS 2005", (9, 0): "VS 2008", (10, 0): "VS 2010"}
 
 
+# Rich header build numbers of the Microsoft tools -> Visual C++ version. VC 8.0 and 11.0 both
+# use build 50727; the product ids (which tool, which version) tell them apart.
+MS_BUILDS = [((8168, 8447, 8783, 8799, 8804, 8966), "VC++ 6.0"),
+             ((9030, 9178, 9466), "VC++ 7.0 (VS .NET 2002)"),
+             ((2179, 2292, 3052, 3077, 4035, 6030), "VC++ 7.1 (VS .NET 2003)"),
+             ((21022, 30729), "VC++ 9.0 (VS 2008)"),
+             ((30319, 40219), "VC++ 10.0 (VS 2010)"),
+             ((51106, 60315, 60610, 61030), "VC++ 11.0 (VS 2012)"),
+             ((21005, 30501, 30723, 31101, 40629), "VC++ 12.0 (VS 2013)")]
+
+
+# first product id of each version's tools (7.1 and later)
+MS_PRODIDS = [(0x5a, "VC++ 7.1 (VS .NET 2003)"), (0x6d, "VC++ 8.0 (VS 2005)"), (0x83, "VC++ 9.0 (VS 2008)"),
+              (0x96, "VC++ 10.0 (VS 2010)"), (0xaa, "VC++ 11.0 (VS 2012)"), (0xbe, "VC++ 12.0 (VS 2013)"),
+              (0xd2, "VC++ 14.x (VS 2015 or later)")]
+
+
+def rich_header(d, lfanew):
+    """[(product id, build, count)] of the Rich header (the tools that built the program), or []"""
+    end = d.find(b"Rich", 0x80, lfanew)
+    if end < 0 or end + 8 > len(d):
+        return []
+    key = _u32(d, end + 4)
+    start = None
+    for o in range(end - 4, 0x3f, -4):
+        if _u32(d, o) ^ key == 0x536e6144:          # "DanS"
+            start = o
+            break
+    if start is None:
+        return []
+    out = []
+    for o in range(start + 16, end, 8):
+        comp, count = _u32(d, o) ^ key, _u32(d, o + 4) ^ key
+        out.append((comp >> 16, comp & 0xffff, count))
+    return out
+
+
+def msvc_version(rich):
+    """the Visual C++ version most of the program's objects were compiled with, or None"""
+    votes = {}
+    for prod, build, count in rich:
+        if prod == 0 or count == 0:
+            continue                                # imports, unknown
+        name = None
+        if prod >= 0x5a:                            # product ids are allotted per version from 7.1 on
+            for lo, v in MS_PRODIDS:
+                if prod >= lo:
+                    name = v
+        else:
+            for builds, v in MS_BUILDS:
+                if build in builds:
+                    name = v
+        if name:
+            votes[name] = votes.get(name, 0) + count
+    return max(votes, key=votes.get) if votes else None
+
+
 class FormatError(Exception):
     pass
 
@@ -385,6 +442,11 @@ def identify(path):
         if b"Rich" in d[0x80:lfanew]:
             info["toolchain"] = MS_LINKERS.get(lv, "Microsoft linker %d.%d" % lv)
             info.setdefault("compiler", "Microsoft Visual C++")
+            rich = rich_header(d, lfanew)
+            v = msvc_version(rich)
+            if v:
+                info["compiler"] = "Microsoft Visual C++ (%s by the Rich header)" % v
+            info["rich"] = ["prod 0x%02x build %d x%d" % r for r in rich]
         return info
     if sig[:2] == b"NE":
         info.update(format="NE", notes=["16-bit Windows/OS2 NE: import with Ghidra directly, this kit is not needed"])

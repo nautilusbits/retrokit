@@ -11,9 +11,11 @@
     retrokit entries WS [-o FILE]        code addresses without a function (PE)
     retrokit modules WS --rules FILE     functions -> source files via assert paths (PE)
     retrokit strings GAME.EXE OUT        string inventory without Ghidra (PE)
+    retrokit classes GAME.EXE            MSVC C++ classes, vtables and bases from RTTI (PE)
     retrokit libs GAME.EXE               period libraries the game uses (evidence, notes, kit support)
     retrokit sigs match GAME.EXE         library functions by signature -> names CSV
     retrokit sigs build --watcom DIR --lib X.lib -o X.sig   signatures from an OMF library
+    retrokit sigs build --coff --lib LIBC.LIB -o X.sig      signatures from an MSVC COFF library
     retrokit sigs learn WS -o X.sig       signatures from the named functions of a workspace
     retrokit match ...                   transfer names to a related EXE (tools/match_names.py)
     retrokit le GAME.EXE info|dump|rec|s16|s32 ...   read LE tables at Ghidra addresses
@@ -92,6 +94,20 @@ def cmd_info(a):
         if found:
             print("  libraries  " + ", ".join(f["name"] + (" " + f["version"] if f["version"] else "") for f in found)
                   + "   (retrokit libs for details)")
+    return 0
+
+
+def cmd_classes(a):
+    from . import rtti
+    exe = _workspace(a.exe)["exe"] if wsp.is_workspace(a.exe) else a.exe
+    with open(exe, "rb") as fh:
+        classes = rtti.scan(fh.read())
+    if a.names:
+        with open(a.names, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("addr,name,confidence,comment\n")
+            for addr, name, conf, comment in rtti.name_proposals(classes):
+                fh.write("%08x,%s,%s,%s\n" % (addr, name, conf, comment.replace(",", ";")))
+    print(json.dumps(classes, indent=1) if a.json else rtti.format_report(classes))
     return 0
 
 
@@ -186,9 +202,21 @@ def cmd_modules(a):
 
 
 def cmd_sigs(a):
+    if a.action == "build" and a.coff:
+        if not a.lib or not a.output:
+            raise SystemExit("sigs build --coff needs --lib LIB (repeatable) and -o FILE")
+        from . import coff
+        found = []
+        for lib in a.lib:
+            found += coff.lib_sigs(lib)
+        sigs.write(a.output, found, ["label: %s" % (a.label or ", ".join(os.path.basename(l) for l in a.lib)),
+                                     "built by retrokit sigs build --coff"])
+        print("%d signatures -> %s" % (len(found), a.output))
+        return 0
     if a.action == "build":
         if not a.watcom or not a.lib or not a.output:
-            raise SystemExit("sigs build needs --watcom DIR, --lib LIB (repeatable) and -o FILE")
+            raise SystemExit("sigs build needs --watcom DIR, --lib LIB (repeatable) and -o FILE "
+                             "(or --coff for Microsoft COFF libraries)")
         n = sigs.build(a.watcom, a.lib, a.output, a.label, a.system)
         print("%d signatures -> %s" % (n, a.output))
         return 0
@@ -331,6 +359,11 @@ def build_parser():
     s.add_argument("--rules", help="TSV regex<TAB>module")
     s.add_argument("-o", "--output", help="output dir (default <workspace>/notes)")
 
+    s = add("classes", cmd_classes, "MSVC C++ classes from RTTI: names, base classes, vtables (PE)")
+    s.add_argument("exe", help="executable or workspace")
+    s.add_argument("--json", action="store_true")
+    s.add_argument("--names", help="also write name proposals (vftables V, virtual methods G) to this CSV")
+
     s = add("libs", cmd_libs, "period libraries a game uses: evidence, version, notes, what the kit supports")
     s.add_argument("exe", help="executable or workspace")
     s.add_argument("--dir", help="game directory to look for data files in (default: the executable's)")
@@ -344,7 +377,8 @@ def build_parser():
     s.add_argument("--names", help="learn: only the addresses of this names CSV (default: every named function)")
     s.add_argument("--sigs", action="append", help="match: .sig file or directory (default: shipped + ~/.retrokit/sigs)")
     s.add_argument("-o", "--output", help="match: names CSV (default <workspace>/notes/sigs/names_sigs.csv); build, learn: .sig file")
-    s.add_argument("--watcom", help="build: Watcom install dir (wlink, wlib)")
+    s.add_argument("--watcom", help="build: Watcom install dir (wlink, wlib) for OMF libraries")
+    s.add_argument("--coff", action="store_true", help="build: the libraries are Microsoft COFF .lib (MSVC), no linker needed")
     s.add_argument("--lib", action="append", help="build: OMF library (repeatable)")
     s.add_argument("--label", help="build: description stored in the file")
     s.add_argument("--system", default="dos4g", help="build: wlink system for the reference link")

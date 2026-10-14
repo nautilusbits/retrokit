@@ -246,13 +246,21 @@ def evaluate(vdir, verbose=False):
     for k, pat in noise.items():
         m[k] = len(re.findall(pat, text))
         m[k + "_own"] = len(re.findall(pat, own_text))
+    # text the variant's decompiled C must contain (COM method names, typed imports, ...)
+    vj = os.path.join(vdir, "variant.json")
+    expect = json.load(open(vj)).get("expect", []) if os.path.exists(vj) else []
+    m["expect_total"] = len(expect)
+    m["expect_found"] = sum(1 for e in expect if e in text)
+    for e in expect:
+        if e not in text:
+            issues.append("expected  %s" % e)
     m["functions"] = len(gh)
     m["issues"] = issues
     return m
 
 
 SUMMARY = [("own_found", "own_total"), ("lib_found", "lib_total"), ("lib_named", "lib_total"), ("own_params_ok", "own_total"),
-           ("calls_args_ok", "calls_total"), ("strings_found", "strings_total")]
+           ("calls_args_ok", "calls_total"), ("strings_found", "strings_total"), ("expect_found", "expect_total")]
 COUNTERS = ["own_truncated", "extraout", "unaff", "undefined8", "in_reg", "warnings"]
 OWN_NOISE = ["extraout_own", "unaff_own", "undefined8_own", "in_reg_own", "warnings_own"]
 

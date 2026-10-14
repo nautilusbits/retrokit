@@ -18,6 +18,22 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "fixtures", "dos", "src")
+WIN32_SRC = os.path.join(HERE, "fixtures", "win32", "src")
+# Win32 variant: imports from DLLs of the period, through an import library made with wlib
+# (symbol as the compiler names it -> DLL -> exported name)
+WIN32_IMPORTS = [
+    ("_DirectDrawCreate@12", "ddraw", ".DirectDrawCreate"),     # "..": export name differs from the symbol
+    ("_AIL_startup@0", "mss32", "_AIL_startup@0"),
+    ("_AIL_set_preference@8", "mss32", "_AIL_set_preference@8"),
+    ("_SmackOpen@12", "smackw32", "_SmackOpen@12"),
+    ("_SmackClose@4", "smackw32", "_SmackClose@4"),
+]
+# text the decompiled C of a variant must contain (tests/evaluate.py: expect_found)
+EXPECT = {
+    "nt_s": ["lpVtbl->SetCooperativeLevel", "lpVtbl->SetDisplayMode", "lpVtbl->CreateSurface",
+             "lpVtbl->GetAttachedSurface", "lpVtbl->Lock", "lpVtbl->Unlock", "lpVtbl->Flip",
+             "DirectDrawCreate(", "AIL_set_preference(1,", "SmackOpen(\"intro.smk\",0,0)"],
+}
 
 OPT = "-oneatx"   # the usual release switches of the period
 VARIANTS = {
@@ -54,19 +70,26 @@ def build(watcom, out, name):
     env = dict(os.environ, WATCOM=watcom, INCLUDE=os.pathsep.join(inc))
     env["PATH"] = hb + os.pathsep + os.path.join(watcom, "binw") + os.pathsep + env.get("PATH", "")
     srcs = sorted(glob.glob(os.path.join(SRC, "*.c")))
+    libs = []
+    if system == "nt":
+        srcs += sorted(glob.glob(os.path.join(WIN32_SRC, "*.c")))
+        imp = os.path.join(vdir, "imports.lib")
+        subprocess.run([os.path.join(hb, "wlib"), "-q", "-n", imp] +
+                       ["++%s.%s.%s" % e for e in WIN32_IMPORTS], cwd=vdir, env=env, check=True)
+        libs = [imp]
     cmd = [os.path.join(hb, "wcl386"), "-q", "-bt=" + target, "-l=" + system, "-fe=engine.exe",
-           "-fm=engine.map", "-i=" + SRC] + cflags + srcs
+           "-fm=engine.map", "-i=" + SRC] + cflags + srcs + libs
     subprocess.run(cmd, cwd=vdir, env=env, check=True)
     if post == "bwbind":
         bw_bind(os.path.join(vdir, "engine.exe"))
     if post == "pmwlite":
         subprocess.run([os.path.join(watcom, "binw", "pmwlite"), "/c4", "engine.exe"],
                        cwd=vdir, env=env, check=True, stdout=subprocess.DEVNULL)
-    for o in glob.glob(os.path.join(vdir, "*.obj")):
+    for o in glob.glob(os.path.join(vdir, "*.obj")) + glob.glob(os.path.join(vdir, "*.lib")):
         os.remove(o)
     with open(os.path.join(vdir, "variant.json"), "w") as fh:
         json.dump({"name": name, "system": system, "cflags": cflags, "cspec": cspec,
-                   "post": post}, fh, indent=1)
+                   "post": post, "expect": EXPECT.get(name, [])}, fh, indent=1)
     print("built %-14s %s" % (name, " ".join([system] + cflags + ([post] if post else []))))
 
 

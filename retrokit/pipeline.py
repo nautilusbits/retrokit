@@ -12,6 +12,7 @@ import os
 import subprocess
 
 from . import ghidra as gh
+from . import formats
 from . import libs
 from . import paths
 from . import sigs
@@ -19,7 +20,7 @@ from . import workspace as wsp
 
 LE_SUMMARY = (r"Created|Switch tables|Exporting|Export done|Wrote|ApplyStackConvention:|MarkStringsConstant:|"
               r"ApplyNames:|ApplyLibraryPrototypes:|library signatures|Recovering|iteration|Entries:")
-PE_SUMMARY = r"Exporting|Export done|DumpImports|ApplyNames:|Entries:"
+PE_SUMMARY = r"Exporting|Export done|DumpImports|ApplyNames:|Entries:|PropagateComTypes:|ApplyLibraryPrototypes:"
 
 
 def _dirs(ws):
@@ -52,16 +53,23 @@ def _entries_args(*entries, trusted=None):
     return out
 
 
-def _library_args(lib_names):
-    """preScripts: library names from signatures, then their documented prototypes - before the
-    parameter-count and prototype passes, which leave the typed (LIBRARY) functions alone"""
-    if not lib_names:
-        return []
-    args = ["-preScript", "ApplyNames.java", os.path.abspath(lib_names)]
-    # the C library header first: the others use its types
+def knowledge_headers(win32=False):
+    """the prototype headers, in parse order: the C library first (the others use its types),
+    then the other libraries, then (win32) the Win32 headers starting with their base types"""
     headers = sorted(glob.glob(os.path.join(paths.KNOWLEDGE, "*.h")),
                      key=lambda h: (os.path.basename(h) != "watcom_clib.h", h))
-    if headers:
+    if win32:
+        headers += sorted(glob.glob(os.path.join(paths.KNOWLEDGE, "win32", "*.h")))
+    return headers
+
+
+def _library_args(lib_names, win32=False):
+    """preScripts: library names from signatures, then the documented prototypes (Watcom:
+    named library functions; Win32: imported functions) - before the parameter-count and
+    prototype passes, which leave the typed (LIBRARY) functions alone"""
+    args = ["-preScript", "ApplyNames.java", os.path.abspath(lib_names)] if lib_names else []
+    headers = knowledge_headers(win32)
+    if headers and (lib_names or win32):
         args += ["-preScript", "ApplyLibraryPrototypes.java"] + headers
     return args
 
@@ -87,6 +95,31 @@ def library_names(ws, d, out):
         len(found), sum(1 for v in found.values() if v[1] == "V"), sum(1 for v in found.values() if v[1] == "G"),
         names))
     return names, entries
+
+
+def rtti_names(ws, d, out):
+    """PE: MSVC RTTI classes -> decomp/classes.txt and names for their unnamed virtual methods
+    (notes/sigs/names_rtti.csv, G); returns the CSV or None"""
+    from . import rtti
+    try:
+        with open(ws["exe"], "rb") as fh:
+            classes = rtti.scan(fh.read())
+    except formats.FormatError:
+        return None
+    if not classes:
+        return None
+    with open(os.path.join(d["decomp"], "classes.txt"), "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(rtti.format_report(classes) + "\n")
+    props = [p for p in rtti.name_proposals(classes) if p[2] == "G"]     # vftables: Ghidra's RTTI analyzer
+    sd = os.path.join(d["notes"], "sigs")
+    os.makedirs(sd, exist_ok=True)
+    path = os.path.join(sd, "names_rtti.csv")
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("addr,name,confidence,comment\n")
+        for a, name, conf, comment in props:
+            fh.write("%08x,%s,%s,%s\n" % (a, name, conf, comment.replace(",", ";")))
+    out("MSVC RTTI: %d classes, %d virtual methods named -> decomp/classes.txt" % (len(classes), len(props)))
+    return path
 
 
 def _summary(log, pattern, out):
@@ -173,10 +206,15 @@ def _export_pe(ws, ghidra, d, names, phase, out):
     """full export: strings, parameter counts and prototypes as for LE, then the dumps"""
     name = os.path.basename(ws["exe"])
     lib_names, lib_entries = library_names(ws, d, out)
+    if rtti_names(ws, d, out):
+        lib_names = os.path.join(d["notes"], "sigs")       # ApplyNames takes every names_*.csv there
     args = ["-process", name] + _entries_args(trusted=lib_entries) + ["-noanalysis", "-preScript", "MarkStringsConstant.java"] + \
-        _library_args(lib_names)
+        _library_args(lib_names, win32=True)
     if ws.get("prototypes", True):
         args += ["-preScript", "ApplyStackConvention.java", "-postScript", "RecoverPrototypes.java"]
+    # COM interface pointers (DirectX ...): typed after the prototypes, so calls through their
+    # vtables show the method names
+    args += ["-postScript", "PropagateComTypes.java"]
     log = _headless(ghidra, d, args + _names_args(names) + [
         "-postScript", "ExportDecompiled.java", d["decomp"], ws["cname"],
         "-postScript", "DumpImports.java", os.path.join(d["decomp"], "imports.txt"),

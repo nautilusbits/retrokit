@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.0 - unreleased
+
+Win32:
+- DirectX COM interfaces (DirectDraw 1-7, DirectSound, DirectInput 1-8, Direct3D 3-9): interface
+  pointers typed from the creation functions and out-parameters, calls through the vtables
+  with call-site prototypes - the decompiled C shows the method names.
+- Prototypes for imports from Miles (MSS32), Smacker, Bink, FMOD 3 and BASS, checked against the
+  `@N` of decorated imports; imports undecorated.
+- `retrokit classes`: MSVC RTTI - classes, base classes, vtables; virtual methods named.
+- Visual C++ version from the Rich header in `retrokit info`.
+- `retrokit sigs build --coff` (signatures from MSVC COFF libraries), `sigs learn` for PE.
+- Fixed: fuzzy signature matching is deterministic.
+
 ## 0.1.0 - 2026-10-14
 
 First public release: DOS (LE/LX, Watcom) analysis end to end, Win32 PE pipeline.

@@ -5,7 +5,9 @@ A toolkit for decompiling 32-bit games from roughly 1993–2010 with headless Gh
 - **DOS LE/LX** (DOS/4GW, DOS/32A, PMODE/W, CauseWay, DOS/4G bind; also OS/2 LX and VxD)
   built with Watcom C/C++ – with its own LE/LX loader for Ghidra and Watcom compiler specs for
   both calling conventions.
-- **Win32 PE** (typically MSVC).
+- **Win32 PE** (typically MSVC): DirectX calls through COM vtables shown with their method
+  names, Miles/Smacker/Bink/FMOD/BASS imports typed, C++ classes from MSVC RTTI, the
+  compiler version from the Rich header.
 
 The output is a workspace with one large `.c` file holding every function plus indexes
 (functions, call graph, strings, fixups/pointer tables, imports) that you can grep and split up
@@ -90,7 +92,7 @@ What the pipeline does:
   targets and after padding until no new ones turn up, the same string / parameter / prototype
   passes, export.
 
-Other commands: `libs` (libraries in use), `convert` (XMIDI/HMI/HMP -> MIDI, VOC -> WAV,
+Other commands: `classes` (MSVC C++ classes from RTTI), `libs` (libraries in use), `convert` (XMIDI/HMI/HMP -> MIDI, VOC -> WAV,
 Smacker/Bink/FLIC -> MP4, by content), `sigs match|build|learn` (library signatures, see
 `docs/WORKFLOW.md`),
 `entries` (PE: code addresses without a function), `modules --rules FILE`

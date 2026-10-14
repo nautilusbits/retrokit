@@ -38,8 +38,12 @@ library signatures are shipped only when built from open-source or public-domain
 7. ~~MCP server over the export (`retrokit mcp`: function/xref/string/table/disassembly queries,
    name proposals, notes, guarded background re-export)~~
 8. ~~Release 0.1 (DOS)~~
-9. Win32: MSVC RTTI (classes, vtables), DirectX 3-9 COM interfaces, RAD/FMOD/BASS prototypes,
-   MSVC CRT identification
+9. ~~Win32: MSVC RTTI (classes, vtables), DirectX 3-9 COM interfaces, RAD/FMOD/BASS prototypes,
+   MSVC CRT identification~~ - Rich header version, `sigs build --coff`, `sigs learn` for PE
+   - open: QueryInterface results, C++ member functions (`this` in ECX, __thiscall) from RTTI,
+     DirectX structures (DDSURFACEDESC, ...) instead of void *, more Win32 libraries
+   - open (PE pipeline): a code address used as data (`mov esi, offset table`) can become a
+     bogus function whose decompilation runs into the next function
 
 ## Known pipeline problems found by the test corpus
 

@@ -289,6 +289,9 @@ class Server:
                            self.t_bytes),
             "libraries": ("Libraries the game uses (Miles, HMI, Smacker, zlib, ...) with evidence, version and "
                           "notes on formats and porting.", _schema(p()), self.t_libs),
+            "classes": ("C++ classes of an MSVC program from its RTTI: class names, base classes, vtables "
+                        "and their virtual methods (with current function names).",
+                        _schema(p(pattern=dict(S, description="regex on the class name"))), self.t_classes),
             "propose_names": ("Record name proposals in notes/names_<topic>.csv for 'retrokit names' / reexport. "
                               "Each: address, name (C identifier), confidence V (verified) or G (guess), comment. "
                               "A proposal for an address already in that file replaces it.",
@@ -539,6 +542,31 @@ class Server:
         w = self.ws(a)
         from . import libs
         return libs.format_report(libs.detect(w.ws["exe"]))
+
+    def t_classes(self, a):
+        w = self.ws(a)
+        from . import rtti
+        try:
+            with open(w.ws["exe"], "rb") as fh:
+                classes = rtti.scan(fh.read())
+        except Exception as e:
+            raise ToolError("no RTTI: %s" % e)
+        if a.get("pattern"):
+            try:
+                rx = re.compile(a["pattern"])
+            except re.error as e:
+                raise ToolError("bad regex: %s" % e)
+            classes = {k: v for k, v in classes.items() if rx.search(k)}
+        if not classes:
+            return "no classes with RTTI" + (" matching" if a.get("pattern") else "")
+        out = ["%d classes" % len(classes)]
+        for name in sorted(classes)[:300]:
+            c = classes[name]
+            out.append("%s%s" % (name, " : " + ", ".join(c["bases"]) if c["bases"] else ""))
+            for vt, off, methods in c["vtables"]:
+                out.append("    vftable %s%s: %s" % (vt, " (+%d)" % off if off else "", ", ".join(
+                    w.label(int(m, 16)) for m in methods[:40]) + (" ..." if len(methods) > 40 else "")))
+        return _clip("\n".join(out))
 
     # ---------------------------------------------------------------------- write tools
     def t_propose(self, a):

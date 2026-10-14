@@ -2,6 +2,8 @@
  "dos32a_r": {
   "calls_args_ok": 40,
   "calls_total": 40,
+  "expect_found": 0,
+  "expect_total": 0,
   "extraout": 22,
   "extraout_own": 8,
   "in_reg": 70,
@@ -25,6 +27,8 @@
  "dos4g_r": {
   "calls_args_ok": 40,
   "calls_total": 40,
+  "expect_found": 0,
+  "expect_total": 0,
   "extraout": 22,
   "extraout_own": 8,
   "in_reg": 70,
@@ -48,6 +52,8 @@
  "dos4g_r_bw": {
   "calls_args_ok": 40,
   "calls_total": 40,
+  "expect_found": 0,
+  "expect_total": 0,
   "extraout": 22,
   "extraout_own": 8,
   "in_reg": 70,
@@ -71,6 +77,8 @@
  "dos4g_s": {
   "calls_args_ok": 40,
   "calls_total": 40,
+  "expect_found": 0,
+  "expect_total": 0,
   "extraout": 86,
   "extraout_own": 4,
   "in_reg": 255,
@@ -94,6 +102,8 @@
  "dos4g_s_od": {
   "calls_args_ok": 37,
   "calls_total": 40,
+  "expect_found": 0,
+  "expect_total": 0,
   "extraout": 86,
   "extraout_own": 4,
   "in_reg": 261,
@@ -117,9 +127,11 @@
  "nt_s": {
   "calls_args_ok": 40,
   "calls_total": 40,
+  "expect_found": 10,
+  "expect_total": 10,
   "extraout": 54,
   "extraout_own": 4,
-  "in_reg": 338,
+  "in_reg": 354,
   "in_reg_own": 0,
   "lib_found": 175,
   "lib_named": 109,
@@ -134,12 +146,14 @@
   "unaff_own": 0,
   "undefined8": 8,
   "undefined8_own": 3,
-  "warnings": 219,
+  "warnings": 234,
   "warnings_own": 0
  },
  "os2_r": {
   "calls_args_ok": 31,
   "calls_total": 31,
+  "expect_found": 0,
+  "expect_total": 0,
   "extraout": 18,
   "extraout_own": 4,
   "in_reg": 6,
@@ -163,6 +177,8 @@
  "pmodew_s": {
   "calls_args_ok": 40,
   "calls_total": 40,
+  "expect_found": 0,
+  "expect_total": 0,
   "extraout": 86,
   "extraout_own": 4,
   "in_reg": 255,

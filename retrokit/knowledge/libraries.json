@@ -55,10 +55,11 @@
     "*.FLT",
     "*.ASI"
    ],
-   "notes": "Digital audio and MIDI through loadable drivers (.DIG digital, .MDI MIDI; the setup program writes DIG.INI / MDI.INI). Music is usually Extended MIDI (XMIDI, .XMI: IFF 'FORM XDIR'/'XMID' with per-sequence timbre lists); 'retrokit convert' turns it into standard MIDI. Win32 versions export AIL_* functions by name from MSS32.DLL, which names the call sites directly. Statically linked DOS builds need learned signatures ('retrokit sigs learn'). Port: an audio mixer (SDL_mixer, miniaudio) plus the converted MIDI on a General MIDI synthesizer.",
+   "notes": "Digital audio and MIDI through loadable drivers (.DIG digital, .MDI MIDI; the setup program writes DIG.INI / MDI.INI). Music is usually Extended MIDI (XMIDI, .XMI: IFF 'FORM XDIR'/'XMID' with per-sequence timbre lists); 'retrokit convert' turns it into standard MIDI. Win32 versions export AIL_* functions by name from MSS32.DLL; retrokit types the imports from knowledge/win32/mss.h. Statically linked DOS builds need learned signatures ('retrokit sigs learn'). Port: an audio mixer (SDL_mixer, miniaudio) plus the converted MIDI on a General MIDI synthesizer.",
    "magic": [
     "FORM\u0000\u0000\u0000\u000eXDIR"
-   ]
+   ],
+   "prototypes": "win32/mss.h"
   },
   {
    "id": "hmi-sos",
@@ -148,7 +149,8 @@
    "magic": [
     "SMK2",
     "SMK4"
-   ]
+   ],
+   "prototypes": "win32/rad.h"
   },
   {
    "id": "bink",
@@ -175,7 +177,8 @@
    "notes": "Video codec from 1999 on (.BIK, signature 'BIK'). API exported by name from BINKW32.DLL (BinkOpen, BinkDoFrame, BinkNextFrame, BinkWait, BinkCopyToBuffer, BinkClose). Port: FFmpeg decodes Bink 1.",
    "magic": [
     "BIK"
-   ]
+   ],
+   "prototypes": "win32/rad.h"
   },
   {
    "id": "granny",
@@ -224,7 +227,8 @@
     "FMODEX.DLL",
     "*.FSB"
    ],
-   "notes": "Sound library (FMOD 3: FSOUND_*/FMUSIC_* functions, FMOD Ex from 2004: C++ classes). Imports name the call sites."
+   "notes": "Sound library (FMOD 3: FSOUND_*/FMUSIC_* functions, FMOD Ex from 2004: C++ classes). Imports name the call sites.",
+   "prototypes": "win32/fmod_bass.h"
   },
   {
    "id": "bass",
@@ -243,7 +247,8 @@
    "files": [
     "BASS.DLL"
    ],
-   "notes": "Sound library; BASS_* functions imported by name."
+   "notes": "Sound library; BASS_* functions imported by name.",
+   "prototypes": "win32/fmod_bass.h"
   },
   {
    "id": "directx",
@@ -264,7 +269,8 @@
     "D3DIM.DLL",
     "D3DRM.DLL"
    ],
-   "notes": "COM interfaces: after the Create call every use is an indirect call through a vtable ([reg+offset]); naming them needs the interface layouts (roadmap step 9). DirectDraw (DDRAW) and DirectSound are the usual pair for 2D games."
+   "notes": "COM interfaces: every use after the Create call is an indirect call through a vtable. retrokit types the creation functions and the interface pointers they fill (DirectDraw 1-7, DirectSound, DirectInput, Direct3D 3-9; knowledge/win32/directx.h), so the calls decompile as (*dd->lpVtbl->CreateSurface)(dd, ...). Interfaces obtained through QueryInterface (void **) stay untyped - set the type by hand.",
+   "prototypes": "win32/directx.h"
   },
   {
    "id": "zlib",

@@ -239,19 +239,72 @@ def extract(exe, mapfile):
     for seg, off, name, module in parse_map(mapfile):
         if seg in bases and le.objects[seg - 1][2] & 0x4:
             by_addr.setdefault(bases[seg] + off, (name, re.sub(r"^.*\((.*)\)$", r"\1", module), seg))
-    return image_sigs(le, by_addr)
+    blocks, masked = le_blocks(le)
+    return image_sigs(blocks, masked, by_addr)
+
+
+def le_blocks(le):
+    """({object number: (base, bytes)} of the executable objects, fixup bytes)"""
+    objs, relocs, _ = le.loaded()
+    bases = le.bases()
+    masked = set()
+    for a, (src, _, _) in relocs.items():
+        masked.update(range(a, a + le.SOURCE_SIZE.get(src, 4)))
+    return {n: (bases[n], b) for n, b in objs.items() if le.objects[n - 1][2] & 0x4}, masked
+
+
+def pe_blocks(data):
+    """({section index: (address, bytes)} of the executable sections of a PE, bytes of its base
+    relocations - the addresses a loader may change)"""
+    pe = struct.unpack_from("<I", data, 0x3c)[0]
+    nsec, opt = struct.unpack_from("<H", data, pe + 6)[0], struct.unpack_from("<H", data, pe + 20)[0]
+    image_base = struct.unpack_from("<I", data, pe + 24 + 28)[0]
+    reloc_rva, reloc_size = struct.unpack_from("<II", data, pe + 24 + 96 + 5 * 8)
+    secs, blocks = [], {}
+    for i in range(nsec):
+        s = pe + 24 + opt + i * 40
+        vsize, va, rsize, raw = struct.unpack_from("<IIII", data, s + 8)
+        flags = struct.unpack_from("<I", data, s + 36)[0]
+        secs.append((va, max(vsize, rsize), raw))
+        if flags & 0x20000020:
+            blocks[i + 1] = (image_base + va, data[raw:raw + min(rsize, vsize or rsize)])
+
+    def off(rva):
+        for va, size, raw in secs:
+            if va <= rva < va + size:
+                return raw + rva - va
+        return None
+    masked = set()
+    p, end = off(reloc_rva) if reloc_rva else None, None
+    if p is not None:
+        end = p + reloc_size
+        while p + 8 <= end:
+            page, size = struct.unpack_from("<II", data, p)
+            if size < 8:
+                break
+            for k in range(8, size, 2):
+                e = struct.unpack_from("<H", data, p + k)[0]
+                if e >> 12 == 3:                       # IMAGE_REL_BASED_HIGHLOW
+                    a = image_base + page + (e & 0xfff)
+                    masked.update(range(a, a + 4))
+            p += size
+    return blocks, masked
 
 
 def learn(exe, functions_csv, keep=None, module=""):
     """[Sig] from an analysed LE: the functions of a functions.csv (addr,name,...) whose names are not
     Ghidra defaults - or only those in keep (a set of addresses)"""
     import csv
-    le = formats.LinearExecutable(exe)
-    bases = le.bases()
+    with open(exe, "rb") as fh:
+        data = fh.read()
+    if formats.find_le(data) is not None:
+        blocks, masked = le_blocks(formats.LinearExecutable(data=data))
+    else:
+        blocks, masked = pe_blocks(data)
 
     def seg_of(a):
-        for n, base in bases.items():
-            if base <= a < base + le.objects[n - 1][0] and le.objects[n - 1][2] & 0x4:
+        for n, (base, b) in blocks.items():
+            if base <= a < base + len(b):
                 return n
     by_addr = {}
     with open(functions_csv, encoding="utf-8") as fh:
@@ -261,29 +314,25 @@ def learn(exe, functions_csv, keep=None, module=""):
             if seg:
                 by_addr[a] = (r["name"], module, seg)
     named = {a for a, (n, _, _) in by_addr.items() if not DEFAULT_NAME.match(n)}
-    return image_sigs(le, by_addr, keep if keep is not None else named)
+    return image_sigs(blocks, masked, by_addr, keep if keep is not None else named)
 
 
 DEFAULT_NAME = re.compile(r"(FUN|thunk_FUN|LAB|SUB)_[0-9a-fA-F]+$")
 
 
-def image_sigs(le, by_addr, keep=None):
-    """signatures of the functions by_addr {address: (name, module, object number)} lists (each
-    ends at the next one at the latest); keep limits which become signatures"""
+def image_sigs(blocks, masked, by_addr, keep=None):
+    """signatures of the functions by_addr {address: (name, module, block)} lists (each ends at
+    the next one at the latest) in blocks {block: (address, bytes)}, the bytes in masked being
+    wildcards; keep limits which become signatures"""
     from capstone import Cs, CS_ARCH_X86, CS_MODE_32
     md = Cs(CS_ARCH_X86, CS_MODE_32)
-    objs, relocs, _ = le.loaded()
-    bases = le.bases()
-    masked = set()
-    for a, (src, _, _) in relocs.items():
-        masked.update(range(a, a + le.SOURCE_SIZE.get(src, 4)))
     starts = sorted(by_addr)
     out = []
     for i, a in enumerate(starts):
         name, module, seg = by_addr[a]
         if keep is not None and a not in keep:
             continue
-        base, code = bases[seg], objs[seg]
+        base, code = blocks[seg]
         nxt = starts[i + 1] if i + 1 < len(starts) and by_addr[starts[i + 1]][2] == seg else base + len(code)
         lo, hi = a - base, nxt - base
         end = _function_end(code, lo, hi, md)

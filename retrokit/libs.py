@@ -52,7 +52,8 @@ def _pe_import_names(data):
         oft, _, _, name, ft = struct.unpack_from("<IIIII", data, o)
         if not name:
             break
-        dlls.add(cstr(off(name)).upper())
+        dll = cstr(off(name)).upper()
+        dlls.add(dll if dll.endswith(".DLL") or "." in dll else dll + ".DLL")   # some linkers drop the extension
         t = off(oft or ft)
         while t is not None and t + 4 <= len(data):
             v = struct.unpack_from("<I", data, t)[0]

@@ -11,6 +11,12 @@ void usage(void)
     printf("usage: engine [-seed N] [-level FILE] [-frames N] [-quiet]\n");
 }
 
+#ifdef __NT__
+/* tests/fixtures/win32/src/media.c: DirectDraw, Miles, Smacker (Win32 variant only) */
+int video_init(void *hwnd);
+int media_init(void);
+#endif
+
 int main(int argc, char **argv)
 {
     int i, frames = 10, f;
@@ -50,6 +56,12 @@ int main(int argc, char **argv)
     log_msg(1, "frames %d score %d checksum %08x big %ld", frames, g_world->score,
             checksum(g_screen, sizeof(g_screen), 7, 1, 0xff, 5), (long)(big >> 8));
     log_msg(1, "walker class id %d", entity_class_by_name("walker"));
+#ifdef __NT__
+    if (argc > 99) {            /* never true: the Win32 media code is analysed, not run */
+        video_init(0);
+        media_init();
+    }
+#endif
     free(g_world);
     return 0;
 }
