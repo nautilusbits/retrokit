@@ -1,5 +1,7 @@
 # retro-kit – reverse engineering old games (headless Ghidra)
 
+![Ghidra alone vs retro-kit: DirectDraw calls through COM vtables](docs/images/retrokit-preview.png)
+
 A toolkit for decompiling 32-bit games from roughly 1993–2010 with headless Ghidra:
 
 - **DOS LE/LX** (DOS/4GW, DOS/32A, PMODE/W, CauseWay, DOS/4G bind; also OS/2 LX and VxD)
