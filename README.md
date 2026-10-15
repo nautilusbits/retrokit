@@ -156,6 +156,14 @@ game files or decompiled game code; describe the binary instead (format, extende
 compiler, what goes wrong) and, where you can, reproduce it with a small program built
 with Open Watcom like the ones in `tests/`.
 
+## How it's made
+
+retro-kit is developed with Claude (Anthropic) through Claude Code: most of the code and
+documentation is written by Claude under the maintainer's direction, who sets the scope and
+the design, tests it on Windows and Linux and decides what goes into each release. Commits list
+Claude as co-author. Quality is tracked by the test corpus in `tests/`: synthetic programs
+scored against their linker maps, with a baseline checked in CI on Windows and Linux.
+
 ## License
 
 Apache License 2.0 (`LICENSE`). Earlier versions of the kit used
