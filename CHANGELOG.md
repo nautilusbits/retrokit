@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.1 - 2026-10-27
+
+Fixed:
+- `analyze` and `sigs match` crashed (`struct.error` in the export stage) on large Win32 PE
+  files: a chance `LE\0\0` in the data was taken for an LE header. PE and NE files are no
+  longer searched for LE, and the last-resort scan only accepts a sane LE header; a damaged
+  LE object table is reported as a format error.
+- A failure while matching library signatures no longer aborts `analyze`; the step is skipped
+  with a note.
+
+Added:
+- Detection of packed, encrypted and DRM-wrapped executables: section names of packers and
+  protectors (UPX, SteamStub, ASPack, Themida, VMProtect, Enigma, SecuROM, SafeDisc, StarForce,
+  ...), entry point in an appended section, high-entropy or empty code sections, DOS
+  compressors (UPX, PKLITE, LZEXE, DIET, WWPack, PMWLITE). `info` shows a note, `analyze`
+  prints a warning and continues, the MCP `workspace_info` tells the agent. The analysis of
+  such a file mostly sees the unpacker or DRM stub: unpack it first.
+
+Other:
+- The GitHub repository moved to github.com/nautilusbits/retrokit.
+- 16-bit real-mode DOS is recorded in `docs/ROADMAP.md` as an idea for later.
+
 ## 0.2.0 - 2026-10-14
 
 Win32:
