@@ -45,6 +45,17 @@ library signatures are shipped only when built from open-source or public-domain
    - open (PE pipeline): a code address used as data (`mov esi, offset table`) can become a
      bogus function whose decompilation runs into the next function
 
+## Ideas for later (not planned now)
+
+- **16-bit real-mode DOS (plain MZ, ~1985-1993)** - requested in GitHub issue #1 (SimEarth).
+  Importing is the easy part (Ghidra's MZ loader + `x86:LE:16:Real Mode`); the work is
+  segmented addresses (`seg:off`) through the exports and the MCP server, the 16-bit variants of
+  the scripts (`ADD SP,n`, near/far calls and returns, MZ segment fixups), raw overlays loaded at
+  a fixed segment (overlapping, need overlay blocks), and an index of far pointers built by
+  `push seg` / `push imm16`. The blocker is library signatures: 16-bit games use Borland C,
+  Microsoft C, Turbo Pascal, hand-written assembly and many small compilers, each with its own
+  runtime, and every one would need signatures and testing.
+
 ## Known pipeline problems found by the test corpus
 
 See `tests/baseline.json` for the current numbers. Fixed: switch functions cut short,
