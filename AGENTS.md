@@ -6,7 +6,7 @@ retro-kit reverse-engineers 32-bit DOS (LE/LX, Watcom) and Win32 executables of 
 1993-2010 with headless Ghidra. As an agent you work on an *analysis workspace*, ideally
 through the MCP server - full guide: [docs/MCP.md](docs/MCP.md).
 
-1. Check the environment: `retrokit doctor` (install: `pipx install git+https://github.com/nemo22/retrokit`,
+1. Check the environment: `retrokit doctor` (install: `pipx install git+https://github.com/nautilusbits/retrokit`,
    then `retrokit install-loader`).
 2. Analyse once: `retrokit info GAME.EXE`, then `retrokit analyze GAME.EXE` -> `GAME_analysis/`.
 3. Connect: `claude mcp add retrokit -- retrokit mcp /abs/path/GAME_analysis` (other clients:

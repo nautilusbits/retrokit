@@ -9,7 +9,7 @@ and can have the names applied in Ghidra and the export regenerated.
 ## 1. Prerequisites (once per machine)
 
 ```
-pipx install git+https://github.com/nemo22/retrokit    # or: pip install . in a checkout
+pipx install git+https://github.com/nautilusbits/retrokit    # or: pip install . in a checkout
 retrokit doctor                                        # Python, Ghidra 12, JDK 21+, loader, cspecs
 retrokit install-loader                                # LE/LX loader + Watcom compiler specs into Ghidra
 ```
