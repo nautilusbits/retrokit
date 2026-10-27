@@ -5,8 +5,10 @@ LE header also behind a DOS/4G "BW" bind chain and names the DOS extender stub,
 the compiler and, for PE, the imported DLLs. LinearExecutable maps the linear
 addresses Ghidra shows (object base + offset) to file bytes.
 """
+import math
 import re
 import struct
+from collections import Counter
 
 # most specific first: DOS/32A and others also carry "DOS/4G" strings for compatibility
 EXTENDERS = [
@@ -103,12 +105,24 @@ def _is_le(d, o):
             and _u32(d, o + 4) == 0)
 
 
+def _le_ok(d, o):
+    """_is_le plus a sane header: page size, object count and object table inside the file. The
+    8-byte signature alone also turns up by chance in the data of a large PE."""
+    if not _is_le(d, o) or o + 0xb0 > len(d):
+        return False
+    page_size, obj_tab, n_obj = _u32(d, o + 0x28), _u32(d, o + 0x40), _u32(d, o + 0x44)
+    return (page_size in (0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000, 0x10000)
+            and 0 < n_obj <= 1024 and o + obj_tab + n_obj * 24 <= len(d))
+
+
 def find_le(d):
     """(le_offset, mz_base) or None. mz_base is the MZ header the LE belongs to: 0 for a plain
     stub + LE file, the secondary MZ for DOS/4G "BW"-bound EXEs; LE offsets such as the data
-    pages offset are relative to it."""
+    pages offset are relative to it. None for PE and NE files."""
     if d[:2] == b"MZ" and len(d) >= 0x40:
         lfanew = _u32(d, 0x3c)
+        if d[lfanew:lfanew + 4] == b"PE\0\0" or d[lfanew:lfanew + 2] == b"NE":
+            return None
         if _u16(d, 0x18) >= 0x40 and _is_le(d, lfanew):
             return lfanew, 0
         o = (_u16(d, 4) - 1) * 512 + _u16(d, 2) if _u16(d, 2) else _u16(d, 4) * 512
@@ -125,9 +139,9 @@ def find_le(d):
                 return le_off, o
     elif _is_le(d, 0):
         return 0, 0
-    i = d.find(b"LE\0\0")
+    i = d.find(b"LE\0\0")          # last resort: scan, but only trust a sane header
     while i >= 0:
-        if _is_le(d, i):
+        if _le_ok(d, i):
             return i, 0
         i = d.find(b"LE\0\0", i + 1)
     return None
@@ -151,8 +165,11 @@ class LinearExecutable:
         self.last_page_size = _u32(d, le + 0x2c) if self.signature == "LE" else self.page_size
         obj_tab, n_obj, self.page_map = _u32(d, le + 0x40), _u32(d, le + 0x44), _u32(d, le + 0x48)
         self.objects = []   # (vsize, base, flags, first page index, page count)
-        for i in range(n_obj):
-            self.objects.append(struct.unpack_from("<IIIII", d, le + obj_tab + i * 24))
+        try:
+            for i in range(n_obj):
+                self.objects.append(struct.unpack_from("<IIIII", d, le + obj_tab + i * 24))
+        except struct.error:
+            raise FormatError("LE/LX object table outside the file (damaged or not an LE)")
         self.eip_object, self.eip = _u32(d, le + 0x18), _u32(d, le + 0x1c)
         self._mem = None
 
@@ -413,6 +430,75 @@ def _pe_imports(d, pe):
         return []
 
 
+# PE section names that packers, protectors and DRM wrappers leave behind
+PACKER_SECTIONS = [
+    (r"UPX\d", "UPX"), (r"\.bind", "SteamStub (Steam DRM)"), (r"\.aspack|\.adata", "ASPack"),
+    (r"\.themida|\.winlice", "Themida/WinLicense"), (r"\.vmp\d", "VMProtect"),
+    (r"\.enigma\d", "Enigma Protector"), (r"\.petite", "Petite"), (r"\.nsp\d", "NsPack"),
+    (r"\.MPRESS\d", "MPRESS"), (r"PEC2|pec\d|PECompact", "PECompact"), (r"\.securom|\.dsstext", "SecuROM"),
+    (r"stxt774|stxt371", "SafeDisc"), (r"\.sforce\d?", "StarForce"), (r"\.packed|\.RLPack", "RLPack"), (r"\.yP|\.y0da", "Yoda's Crypter"), (r"\.perplex", "Perplex"),
+]
+# DOS executables: signatures of the usual compressors
+DOS_PACKERS = [(rb"UPX!", "UPX"), (rb"PKLITE", "PKLITE"), (rb"LZ91|LZ09", "LZEXE"), (rb"DIET", "DIET"),
+               (rb"WWPACK", "WWPack"), (rb"aPLib|aPACK", "aPACK")]
+ENTROPY_PACKED = 7.2     # bits per byte; compiled x86 code is usually 5.5-6.8
+
+
+def entropy(b):
+    if not b:
+        return 0.0
+    n = len(b)
+    return -sum(c / n * math.log2(c / n) for c in Counter(b).values())
+
+
+def protection(d):
+    """Signs that the executable is packed, encrypted or wrapped by DRM: a list of findings (empty
+    when none). The analysis still runs on such files, but it sees the stub, not the program."""
+    out = []
+    if d[:2] != b"MZ" or len(d) < 0x40:
+        return out
+    lfanew = _u32(d, 0x3c)
+    if d[lfanew:lfanew + 4] != b"PE\0\0":
+        for pat, name in DOS_PACKERS:
+            if re.search(pat, d[:0x2000]):
+                out.append("%s signature in the header: compressed executable" % name)
+                break
+        if b"PMWLITE" in d[:0x40000] or b"PMW1" in d[:0x40000]:
+            out.append("PMODE/W compressed (PMWLITE): the LE image is packed")
+        return out
+    try:
+        nsec, opt = _u16(d, lfanew + 6), _u16(d, lfanew + 20)
+        ep = _u32(d, lfanew + 24 + 16)
+        secs = []
+        for i in range(nsec):
+            o = lfanew + 24 + opt + i * 40
+            name = d[o:o + 8].rstrip(b"\0").decode("latin-1")
+            vsize, va, rsize, raw = struct.unpack_from("<IIII", d, o + 8)
+            secs.append((name, va, vsize or rsize, raw, rsize, _u32(d, o + 36)))
+    except struct.error:
+        return ["damaged PE header"]
+    for name, *_ in secs:
+        for pat, packer in PACKER_SECTIONS:
+            if re.fullmatch(pat, name):
+                out.append("section %s: %s" % (name, packer))
+                break
+    code = [x for x in secs if x[5] & 0x20000020]
+    ep_sec = next((x for x in secs if x[1] <= ep < x[1] + x[2]), None)
+    if ep and ep_sec is None:
+        out.append("entry point 0x%x outside every section" % ep)
+    elif ep_sec and code and ep_sec is not code[0] and ep_sec is secs[-1]:
+        out.append("entry point in the last section %s, not in the code section %s (typical of a "
+                   "packer or DRM stub)" % (ep_sec[0] or "?", code[0][0] or "?"))
+    for name, va, vsize, raw, rsize, flags in code:
+        if rsize >= 0x1000:
+            e = entropy(d[raw:raw + rsize])
+            if e > ENTROPY_PACKED:
+                out.append("code section %s has entropy %.2f bits/byte: compressed or encrypted" % (name or "?", e))
+        elif rsize == 0 and vsize >= 0x1000:
+            out.append("code section %s is empty in the file (filled at run time by an unpacker)" % (name or "?"))
+    return out
+
+
 def identify(path):
     """dict: format (LE, LX, PE, NE, MZ, unknown), pipeline, details."""
     d = open(path, "rb").read()
@@ -427,6 +513,11 @@ def identify(path):
             break
     if d[:2] != b"MZ" and not _is_le(d, 0):
         return info
+    info["protection"] = protection(d)
+    if info["protection"]:
+        info["notes"].append("looks packed, encrypted or DRM-wrapped (%s): the analysis may only see the "
+                             "stub and the result may be incomplete or wrong; unpack the executable first"
+                             % "; ".join(info["protection"]))
     lfanew = _u32(d, 0x3c) if len(d) >= 0x40 else 0
     sig = d[lfanew:lfanew + 4] if lfanew < len(d) - 4 else b""
     if sig == b"PE\0\0":

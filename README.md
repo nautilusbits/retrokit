@@ -22,7 +22,7 @@ Prerequisites: [Ghidra 12.x](https://github.com/NationalSecurityAgency/ghidra/re
 (unpacked), a JDK 21+ (`JAVA_HOME`), Python 3.10+.
 
 ```
-pipx install git+https://github.com/nemo22/retrokit   # or from a checkout: pip install .  (or python -m retrokit)
+pipx install git+https://github.com/nautilusbits/retrokit   # or from a checkout: pip install .  (or python -m retrokit)
 retrokit doctor                                    # checks Python, Ghidra, Java, loader, cspecs
 retrokit install-loader                            # once per Ghidra install (DOS LE/LX only)
 ```
@@ -93,6 +93,11 @@ What the pipeline does:
 - **PE**: import with Ghidra's PE loader and auto-analysis, then functions at pointer-table
   targets and after padding until no new ones turn up, the same string / parameter / prototype
   passes, export.
+
+Packed, encrypted or DRM-wrapped executables (UPX, SteamStub, SecuROM, SafeDisc, high-entropy
+code, entry point in an appended section, ...) are detected by `info` and `analyze`: the analysis
+still runs, but it warns that Ghidra mostly sees the unpacker or DRM stub, so the result may be
+incomplete or wrong. Unpack such a file first (e.g. `upx -d`, Steamless for SteamStub).
 
 Other commands: `classes` (MSVC C++ classes from RTTI), `libs` (libraries in use), `convert` (XMIDI/HMI/HMP -> MIDI, VOC -> WAV,
 Smacker/Bink/FLIC -> MP4, by content), `sigs match|build|learn` (library signatures, see

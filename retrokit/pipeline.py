@@ -9,8 +9,10 @@ PE (MSVC era):   import with Ghidra's PE loader and auto-analysis, export, then 
 import csv
 import glob
 import os
+import struct
 import subprocess
 
+from . import formats
 from . import ghidra as gh
 from . import formats
 from . import libs
@@ -79,7 +81,11 @@ def library_names(ws, d, out):
     (None, None). Kept out of notes/ itself so that 'retrokit names' applies the user's names first."""
     if not ws.get("sigs", True):
         return None, None
-    found, n = sigs.match_file(ws["exe"], ws.get("sig_files"), fuzzy=ws.get("fuzzy_sigs", True))
+    try:
+        found, n = sigs.match_file(ws["exe"], ws.get("sig_files"), fuzzy=ws.get("fuzzy_sigs", True))
+    except (formats.FormatError, struct.error, ValueError) as e:
+        out("library signatures: skipped, the executable could not be read (%s)" % e)
+        return None, None
     if not found:
         out("library signatures: none found (%d signatures)" % n)
         return None, None
@@ -150,6 +156,15 @@ def run(ws, ghidra, skip_import=False, names=None, entries=None, out=print):
     out("EXE:    %s  [%s%s]" % (ws["exe"], ws["format"],
                                 ", loader %s, cspec %s" % (ws["loader"], ws["cspec"]) if ws["pipeline"] == "le" else ""))
     out("Out:    %s" % ws["dir"])
+    with open(ws["exe"], "rb") as fh:
+        prot = formats.protection(fh.read())
+    ws["protection"] = prot
+    if prot:
+        out("WARNING: the executable looks packed, encrypted or DRM-wrapped:")
+        for p in prot:
+            out("  - " + p)
+        out("  Ghidra will mostly see the unpacker/DRM stub; functions, names and C may be incomplete or")
+        out("  wrong. Unpack it first (e.g. upx -d, Steamless for SteamStub) and analyze the result.")
     found = libs.detect(ws["exe"])
     libs.write_notes(os.path.join(d["notes"], "libraries.md"), ws["exe"], found)
     if found:

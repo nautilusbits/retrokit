@@ -320,6 +320,9 @@ class Server:
         for k in ("format", "extender", "compiler", "toolchain", "loader", "cspec"):
             if w.ws.get(k):
                 lines.append("%s: %s" % (k, w.ws[k]))
+        if w.ws.get("protection"):
+            lines.append("WARNING packed/encrypted/DRM: %s. The analysis likely covers only the unpacker or DRM "
+                         "stub, so functions and C may be incomplete or wrong." % "; ".join(w.ws["protection"]))
         lines.append("functions: %d (%d named, %d unnamed)" % (len(w.funcs), named, len(w.funcs) - named))
         lines.append("strings: %d, pointers (fixups): %d" % (len(w.strings), len(w.fixups)))
         props = sorted(glob.glob(os.path.join(w.notes, "names_*.csv")) + glob.glob(os.path.join(w.notes, "sigs", "names_*.csv")))
